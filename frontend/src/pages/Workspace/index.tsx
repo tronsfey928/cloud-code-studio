@@ -7,9 +7,11 @@ import {
   PauseCircleOutlined,
   HomeOutlined,
   CodeOutlined,
+  SettingOutlined,
 } from '@ant-design/icons';
 import Chat from '@/components/Chat';
 import FileExplorer from '@/components/FileExplorer';
+import OpenCodeSettings from '@/components/OpenCodeSettings';
 import ErrorBoundary from '@/components/Common/ErrorBoundary';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { useChatStore } from '@/stores/chatStore';
@@ -25,13 +27,14 @@ const Workspace: React.FC = () => {
     useWorkspaceStore();
   const { setSessionId, sessionId } = useChatStore();
   const [wsLoading, setWsLoading] = React.useState(false);
+  const [settingsOpen, setSettingsOpen] = React.useState(false);
 
   useEffect(() => {
     if (!id) return;
     if (workspaces.length === 0) {
       void fetchWorkspaces();
     } else {
-      const ws = workspaces.find((w) => w._id === id);
+      const ws = workspaces.find((w) => w.id === id);
       if (ws) setCurrentWorkspace(ws);
     }
   }, [id, workspaces, fetchWorkspaces, setCurrentWorkspace]);
@@ -40,14 +43,14 @@ const Workspace: React.FC = () => {
   useEffect(() => {
     if (!id) return;
     api
-      .get<ChatSession[]>(`/sessions?workspaceId=${id}`)
+      .get<ChatSession[]>('/chat/sessions', { params: { workspaceId: id } })
       .then(({ data }) => {
         if (data.length > 0) {
-          setSessionId(data[0]._id);
+          setSessionId(data[0].id);
         } else {
           return api
-            .post<ChatSession>('/sessions', { workspaceId: id })
-            .then(({ data: session }) => setSessionId(session._id));
+            .post<ChatSession>('/chat/sessions', { workspaceId: id })
+            .then(({ data: session }) => setSessionId(session.id));
         }
       })
       .catch(() => {
@@ -145,6 +148,15 @@ const Workspace: React.FC = () => {
               }
             />
           )}
+          <Tooltip title="OpenCode Settings">
+            <Button
+              icon={<SettingOutlined />}
+              size="small"
+              onClick={() => setSettingsOpen(true)}
+              className="text-gray-300 border-gray-500 hover:text-white hover:border-white"
+              ghost
+            />
+          </Tooltip>
           {isRunning ? (
             <Tooltip title="Stop workspace">
               <Button
@@ -202,6 +214,11 @@ const Workspace: React.FC = () => {
           </>
         )}
       </Content>
+      <OpenCodeSettings
+        workspaceId={id}
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+      />
     </Layout>
   );
 };

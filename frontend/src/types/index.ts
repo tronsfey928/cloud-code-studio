@@ -13,7 +13,7 @@ export interface User {
 }
 
 export interface Workspace {
-  _id: string;
+  id: string;
   name: string;
   repositoryUrl: string;
   branch: string;
@@ -48,9 +48,26 @@ export interface FileTreeNode {
 }
 
 export interface ChatSession {
-  _id: string;
+  id: string;
   workspaceId: string;
   messages: ChatMessage[];
+}
+
+export interface McpServer {
+  name: string;
+  url: string;
+  enabled: boolean;
+}
+
+export interface OpenCodeConfig {
+  id: string;
+  workspaceId: string;
+  llmProvider: string;
+  llmModel: string | null;
+  llmApiKey: string | null;
+  llmBaseUrl: string | null;
+  skills: string[];
+  mcpServers: McpServer[];
 }
 
 export interface ApiError {

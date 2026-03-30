@@ -20,7 +20,21 @@ api.interceptors.request.use(
 );
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Unwrap backend envelope: { success: true, workspaces: [...] } → workspaces: [...]
+    const data = response.data;
+    if (data && typeof data === 'object' && 'success' in data) {
+      const { success, ...rest } = data;
+      // If there's exactly one key left, return its value directly
+      const keys = Object.keys(rest);
+      if (keys.length === 1) {
+        response.data = rest[keys[0]];
+      } else {
+        response.data = rest;
+      }
+    }
+    return response;
+  },
   (error: AxiosError) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token');

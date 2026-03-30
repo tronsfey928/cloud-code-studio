@@ -48,7 +48,7 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ workspaceId }) => {
     setError(null);
     try {
       const { data } = await api.get<FileTreeNode[]>(
-        `/workspaces/${workspaceId}/files`,
+        `/files/${workspaceId}/tree`,
       );
       setTreeData(buildTreeData(data));
     } catch {
@@ -73,8 +73,8 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ workspaceId }) => {
     setFileLoading(true);
     setFileContent(null);
     try {
-      const { data } = await api.get<{ content: string }>(
-        `/workspaces/${workspaceId}/files/content`,
+      const { data } = await api.get<{ content: string; path: string; encoding: string }>(
+        `/files/${workspaceId}/read`,
         { params: { path: filePath } },
       );
       setFileContent(data.content);

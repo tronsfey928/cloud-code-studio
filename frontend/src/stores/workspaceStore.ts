@@ -51,9 +51,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     try {
       await api.delete(`/workspaces/${id}`);
       set((state) => ({
-        workspaces: state.workspaces.filter((w) => w._id !== id),
+        workspaces: state.workspaces.filter((w) => w.id !== id),
         currentWorkspace:
-          state.currentWorkspace?._id === id ? null : state.currentWorkspace,
+          state.currentWorkspace?.id === id ? null : state.currentWorkspace,
       }));
     } catch (err) {
       set({ error: 'Failed to delete workspace' });
@@ -65,9 +65,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     try {
       const { data } = await api.post<Workspace>(`/workspaces/${id}/start`);
       set((state) => ({
-        workspaces: state.workspaces.map((w) => (w._id === id ? data : w)),
+        workspaces: state.workspaces.map((w) => (w.id === id ? data : w)),
         currentWorkspace:
-          state.currentWorkspace?._id === id ? data : state.currentWorkspace,
+          state.currentWorkspace?.id === id ? data : state.currentWorkspace,
       }));
     } catch (err) {
       set({ error: 'Failed to start workspace' });
@@ -79,9 +79,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     try {
       const { data } = await api.post<Workspace>(`/workspaces/${id}/stop`);
       set((state) => ({
-        workspaces: state.workspaces.map((w) => (w._id === id ? data : w)),
+        workspaces: state.workspaces.map((w) => (w.id === id ? data : w)),
         currentWorkspace:
-          state.currentWorkspace?._id === id ? data : state.currentWorkspace,
+          state.currentWorkspace?.id === id ? data : state.currentWorkspace,
       }));
     } catch (err) {
       set({ error: 'Failed to stop workspace' });
@@ -92,7 +92,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   setCurrentWorkspace: (workspace) => {
     const { workspaces } = get();
     if (workspace) {
-      const full = workspaces.find((w) => w._id === workspace._id) ?? workspace;
+      const full = workspaces.find((w) => w.id === workspace.id) ?? workspace;
       set({ currentWorkspace: full });
     } else {
       set({ currentWorkspace: null });

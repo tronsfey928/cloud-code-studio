@@ -177,18 +177,18 @@ const Dashboard: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {workspaces.map((ws) => (
               <Card
-                key={ws._id}
+                key={ws.id}
                 hoverable
                 className="rounded-xl border border-gray-200 shadow-sm transition-shadow hover:shadow-md cursor-pointer"
-                onClick={() => navigate(`/workspace/${ws._id}`)}
+                onClick={() => navigate(`/workspace/${ws.id}`)}
                 actions={[
                   ws.status === 'running' ? (
                     <Tooltip title="Stop" key="stop">
                       <Button
                         type="text"
                         icon={<PauseCircleOutlined />}
-                        loading={actionLoading === ws._id + ':stop'}
-                        onClick={(e) => void handleStop(ws._id, e)}
+                        loading={actionLoading === ws.id + ':stop'}
+                        onClick={(e) => void handleStop(ws.id, e)}
                         className="text-orange-500 hover:text-orange-600"
                         size="small"
                       />
@@ -198,8 +198,8 @@ const Dashboard: React.FC = () => {
                       <Button
                         type="text"
                         icon={<PlayCircleOutlined />}
-                        loading={actionLoading === ws._id + ':start'}
-                        onClick={(e) => void handleStart(ws._id, e)}
+                        loading={actionLoading === ws.id + ':start'}
+                        onClick={(e) => void handleStart(ws.id, e)}
                         className="text-green-500 hover:text-green-600"
                         disabled={ws.status === 'creating'}
                         size="small"
@@ -223,7 +223,7 @@ const Dashboard: React.FC = () => {
                               content: `"${ws.name}" will be permanently deleted.`,
                               okText: 'Delete',
                               okButtonProps: { danger: true },
-                              onOk: () => void handleDelete(ws._id),
+                              onOk: () => void handleDelete(ws.id),
                             });
                           },
                         },
