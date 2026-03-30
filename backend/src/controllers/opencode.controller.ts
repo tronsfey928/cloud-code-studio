@@ -4,6 +4,18 @@ import { OpenCodeConfig } from '../models/OpenCodeConfig';
 import { AuthenticatedRequest } from '../types';
 import { createError } from '../middleware/errorHandler';
 
+function maskApiKey(key: string | null | undefined): string | null {
+  if (!key) return null;
+  if (key.length <= 4) return '****';
+  return '****' + key.slice(-4);
+}
+
+function toSafeConfig(config: OpenCodeConfig): Record<string, unknown> {
+  const json = config.toJSON() as Record<string, unknown>;
+  json.llmApiKey = maskApiKey(config.llmApiKey as string | null);
+  return json;
+}
+
 export async function getConfig(
   req: AuthenticatedRequest,
   res: Response,
@@ -23,7 +35,7 @@ export async function getConfig(
       config = await OpenCodeConfig.create({ workspaceId: workspace.id });
     }
 
-    res.json({ success: true, config });
+    res.json({ success: true, config: toSafeConfig(config) });
   } catch (error) {
     next(error);
   }
@@ -61,7 +73,7 @@ export async function updateConfig(
       await config.update(updates);
     }
 
-    res.json({ success: true, config });
+    res.json({ success: true, config: toSafeConfig(config) });
   } catch (error) {
     next(error);
   }
