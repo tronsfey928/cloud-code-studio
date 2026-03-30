@@ -63,7 +63,8 @@ export async function startContainer(
       { where: { id: workspace.id } }
     );
     logger.info('Container started', { workspaceId: workspace.id, containerId });
-    res.json({ success: true, containerId });
+    const updated = await Workspace.findByPk(workspace.id);
+    res.json({ success: true, workspace: updated });
   } catch (error) {
     next(error);
   }
@@ -82,7 +83,8 @@ export async function stopContainer(
 
     await containerManager.stop(containerId);
     await Workspace.update({ status: 'stopped' }, { where: { id: workspace.id } });
-    res.json({ success: true, message: 'Container stopped' });
+    const updated = await Workspace.findByPk(workspace.id);
+    res.json({ success: true, workspace: updated });
   } catch (error) {
     next(error);
   }
