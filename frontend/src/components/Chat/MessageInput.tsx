@@ -59,6 +59,8 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSend, disabled }) => {
         <Upload
           fileList={fileList}
           onChange={({ fileList: fl }) => setFileList(fl)}
+          // Files are collected locally and sent with the message payload,
+          // not uploaded independently — hence beforeUpload returns false.
           beforeUpload={() => false}
           showUploadList={false}
           multiple

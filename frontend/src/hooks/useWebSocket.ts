@@ -1,5 +1,4 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 import wsService from '@/services/websocket';
 import { useChatStore } from '@/stores/chatStore';
 import { useAuthStore } from '@/stores/authStore';
@@ -127,14 +126,12 @@ export function useWebSocket(sessionId: string | null) {
     (content: string, attachments?: unknown[]) => {
       if (!sessionId) return;
       setTyping(true);
-      const id = uuidv4();
       addMessage({
         type: MessageType.CHAT_MESSAGE,
         content,
         isUser: true,
         sessionId,
-        id,
-      } as Parameters<typeof addMessage>[0]);
+      });
       wsService.sendChatMessage(sessionId, content, attachments);
     },
     [sessionId, addMessage, setTyping],
