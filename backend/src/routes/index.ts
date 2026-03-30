@@ -4,6 +4,7 @@ import workspaceRoutes from './workspace.routes';
 import containerRoutes from './container.routes';
 import chatRoutes from './chat.routes';
 import fileRoutes from './file.routes';
+import opencodeRoutes from './opencode.routes';
 
 const router = Router();
 
@@ -12,5 +13,6 @@ router.use('/workspaces', workspaceRoutes);
 router.use('/containers', containerRoutes);
 router.use('/chat', chatRoutes);
 router.use('/files', fileRoutes);
+router.use('/opencode', opencodeRoutes);
 
 export default router;

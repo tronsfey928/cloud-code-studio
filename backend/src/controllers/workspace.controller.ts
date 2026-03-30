@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { Workspace } from '../models/Workspace';
 import { containerManager } from '../services/containerService';
+import { startContainer, stopContainer } from './container.controller';
 import { AuthenticatedRequest } from '../types';
 import { createError } from '../middleware/errorHandler';
 import { logger } from '../utils/logger';
@@ -135,4 +136,22 @@ export async function deleteWorkspace(
   } catch (error) {
     next(error);
   }
+}
+
+export async function startWorkspace(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  req.params.workspaceId = req.params.id;
+  return startContainer(req, res, next);
+}
+
+export async function stopWorkspace(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  req.params.workspaceId = req.params.id;
+  return stopContainer(req, res, next);
 }
