@@ -3,7 +3,13 @@ dotenv.config();
 
 export const config = {
   port: parseInt(process.env.PORT || '5000', 10),
-  mongoUrl: process.env.MONGODB_URL || 'mongodb://localhost:27017/cloudcode',
+  mysql: {
+    host: process.env.MYSQL_HOST || 'localhost',
+    port: parseInt(process.env.MYSQL_PORT || '3306', 10),
+    user: process.env.MYSQL_USER || 'cloudcode',
+    password: process.env.MYSQL_PASSWORD || 'cloudcode',
+    database: process.env.MYSQL_DATABASE || 'cloudcode',
+  },
   redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
   jwtSecret: process.env.JWT_SECRET || 'your-secret-key',
   jwtExpiry: process.env.JWT_EXPIRY || '24h',

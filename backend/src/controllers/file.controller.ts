@@ -4,12 +4,10 @@ import { fileService } from '../services/fileService';
 import { AuthenticatedRequest } from '../types';
 import { createError } from '../middleware/errorHandler';
 import { logger } from '../utils/logger';
-import mongoose from 'mongoose';
 
 async function resolveWorkspace(workspaceId: string, userId: string) {
   const workspace = await Workspace.findOne({
-    _id: workspaceId,
-    userId: new mongoose.Types.ObjectId(userId),
+    where: { id: workspaceId, userId },
   });
   if (!workspace) throw createError('Workspace not found', 404);
   if (!workspace.containerId) throw createError('Workspace container is not running', 400);
@@ -80,7 +78,7 @@ export async function uploadFile(
 
     const result = await fileService.uploadFile(
       sessionId,
-      workspace.id as string,
+      workspace.id,
       workspace.containerId!,
       req.file,
       targetPath

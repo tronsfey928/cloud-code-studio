@@ -1,80 +1,91 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import {
+  Model,
+  DataTypes,
+  InferAttributes,
+  InferCreationAttributes,
+  CreationOptional,
+} from 'sequelize';
+import { sequelize } from '../config/database';
 
 export type WorkspaceStatus = 'creating' | 'running' | 'stopped' | 'error';
 
-export interface IWorkspace extends Document {
-  userId: mongoose.Types.ObjectId;
-  name: string;
-  repositoryUrl: string;
-  branch: string;
-  containerId?: string;
-  status: WorkspaceStatus;
-  createdAt: Date;
-  lastAccessedAt: Date;
-  config: {
-    resources: {
-      cpu: string;
-      memory: string;
-      storage: string;
-    };
-    environment: Record<string, string>;
+export interface WorkspaceConfig {
+  resources: {
+    cpu: string;
+    memory: string;
+    storage: string;
   };
+  environment: Record<string, string>;
 }
 
-const WorkspaceSchema = new Schema<IWorkspace>(
+export class Workspace extends Model<
+  InferAttributes<Workspace>,
+  InferCreationAttributes<Workspace>
+> {
+  declare id: CreationOptional<string>;
+  declare userId: string;
+  declare name: string;
+  declare repositoryUrl: string;
+  declare branch: CreationOptional<string>;
+  declare containerId: CreationOptional<string | null>;
+  declare status: CreationOptional<WorkspaceStatus>;
+  declare config: CreationOptional<WorkspaceConfig>;
+  declare lastAccessedAt: CreationOptional<Date>;
+  declare createdAt: CreationOptional<Date>;
+  declare updatedAt: CreationOptional<Date>;
+}
+
+Workspace.init(
   {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+    },
     userId: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-      index: true,
+      type: DataTypes.UUID,
+      allowNull: false,
     },
     name: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 100,
+      type: DataTypes.STRING(100),
+      allowNull: false,
     },
     repositoryUrl: {
-      type: String,
-      required: true,
-      trim: true,
+      type: DataTypes.STRING(2048),
+      allowNull: false,
     },
     branch: {
-      type: String,
-      default: 'main',
-      trim: true,
+      type: DataTypes.STRING(255),
+      defaultValue: 'main',
     },
     containerId: {
-      type: String,
+      type: DataTypes.STRING(255),
+      allowNull: true,
     },
     status: {
-      type: String,
-      enum: ['creating', 'running', 'stopped', 'error'],
-      default: 'creating',
-    },
-    lastAccessedAt: {
-      type: Date,
-      default: Date.now,
+      type: DataTypes.ENUM('creating', 'running', 'stopped', 'error'),
+      defaultValue: 'creating',
     },
     config: {
-      resources: {
-        cpu: { type: String, default: '0.5' },
-        memory: { type: String, default: '512m' },
-        storage: { type: String, default: '1g' },
-      },
-      environment: {
-        type: Map,
-        of: String,
-        default: {},
+      type: DataTypes.JSON,
+      defaultValue: {
+        resources: { cpu: '0.5', memory: '512m', storage: '1g' },
+        environment: {},
       },
     },
+    lastAccessedAt: {
+      type: DataTypes.DATE,
+      defaultValue: DataTypes.NOW,
+    },
+    createdAt: DataTypes.DATE,
+    updatedAt: DataTypes.DATE,
   },
   {
-    timestamps: { createdAt: 'createdAt', updatedAt: false },
+    sequelize,
+    tableName: 'workspaces',
+    indexes: [
+      { fields: ['userId'] },
+      { unique: true, fields: ['userId', 'name'] },
+    ],
   }
 );
-
-WorkspaceSchema.index({ userId: 1, name: 1 }, { unique: true });
-
-export const Workspace = mongoose.model<IWorkspace>('Workspace', WorkspaceSchema);

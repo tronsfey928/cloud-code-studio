@@ -1,61 +1,78 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import {
+  Model,
+  DataTypes,
+  InferAttributes,
+  InferCreationAttributes,
+  CreationOptional,
+} from 'sequelize';
+import { sequelize } from '../config/database';
 
-export interface IFileRecord extends Document {
-  sessionId: mongoose.Types.ObjectId;
-  workspaceId: mongoose.Types.ObjectId;
-  filename: string;
-  path: string;
-  size: number;
-  mimeType: string;
-  uploadedAt: Date;
-  storageUrl: string;
+export class FileRecord extends Model<
+  InferAttributes<FileRecord>,
+  InferCreationAttributes<FileRecord>
+> {
+  declare id: CreationOptional<string>;
+  declare sessionId: string;
+  declare workspaceId: string;
+  declare filename: string;
+  declare path: string;
+  declare size: number;
+  declare mimeType: string;
+  declare uploadedAt: CreationOptional<Date>;
+  declare storageUrl: string;
+  declare createdAt: CreationOptional<Date>;
+  declare updatedAt: CreationOptional<Date>;
 }
 
-const FileRecordSchema = new Schema<IFileRecord>(
+FileRecord.init(
   {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+    },
     sessionId: {
-      type: Schema.Types.ObjectId,
-      ref: 'ChatSession',
-      required: true,
-      index: true,
+      type: DataTypes.UUID,
+      allowNull: false,
     },
     workspaceId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Workspace',
-      required: true,
-      index: true,
+      type: DataTypes.UUID,
+      allowNull: false,
     },
     filename: {
-      type: String,
-      required: true,
-      trim: true,
+      type: DataTypes.STRING(255),
+      allowNull: false,
     },
     path: {
-      type: String,
-      required: true,
-      trim: true,
+      type: DataTypes.STRING(2048),
+      allowNull: false,
     },
     size: {
-      type: Number,
-      required: true,
-      min: 0,
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      validate: { min: 0 },
     },
     mimeType: {
-      type: String,
-      required: true,
+      type: DataTypes.STRING(255),
+      allowNull: false,
     },
     uploadedAt: {
-      type: Date,
-      default: Date.now,
+      type: DataTypes.DATE,
+      defaultValue: DataTypes.NOW,
     },
     storageUrl: {
-      type: String,
-      required: true,
+      type: DataTypes.STRING(2048),
+      allowNull: false,
     },
+    createdAt: DataTypes.DATE,
+    updatedAt: DataTypes.DATE,
   },
   {
-    timestamps: false,
+    sequelize,
+    tableName: 'file_records',
+    indexes: [
+      { fields: ['sessionId'] },
+      { fields: ['workspaceId'] },
+    ],
   }
 );
-
-export const FileRecord = mongoose.model<IFileRecord>('FileRecord', FileRecordSchema);

@@ -1,62 +1,47 @@
-import mongoose, { Document, Schema } from 'mongoose';
-import { MessageType } from '../types';
+import {
+  Model,
+  DataTypes,
+  InferAttributes,
+  InferCreationAttributes,
+  CreationOptional,
+} from 'sequelize';
+import { sequelize } from '../config/database';
 
-interface IMessage {
-  id: string;
-  type: MessageType;
-  content: string;
-  timestamp: number;
-  isStreaming?: boolean;
-  role: 'user' | 'assistant' | 'system';
+export class ChatSession extends Model<
+  InferAttributes<ChatSession>,
+  InferCreationAttributes<ChatSession>
+> {
+  declare id: CreationOptional<string>;
+  declare workspaceId: string;
+  declare userId: string;
+  declare createdAt: CreationOptional<Date>;
+  declare updatedAt: CreationOptional<Date>;
 }
 
-export interface IChatSession extends Document {
-  workspaceId: mongoose.Types.ObjectId;
-  userId: mongoose.Types.ObjectId;
-  messages: IMessage[];
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-const MessageSchema = new Schema<IMessage>(
+ChatSession.init(
   {
-    id: { type: String, required: true },
-    type: {
-      type: String,
-      enum: Object.values(MessageType),
-      required: true,
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
     },
-    content: { type: String, required: true },
-    timestamp: { type: Number, required: true },
-    isStreaming: { type: Boolean, default: false },
-    role: {
-      type: String,
-      enum: ['user', 'assistant', 'system'],
-      required: true,
-    },
-  },
-  { _id: false }
-);
-
-const ChatSessionSchema = new Schema<IChatSession>(
-  {
     workspaceId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Workspace',
-      required: true,
-      index: true,
+      type: DataTypes.UUID,
+      allowNull: false,
     },
     userId: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-      index: true,
+      type: DataTypes.UUID,
+      allowNull: false,
     },
-    messages: [MessageSchema],
+    createdAt: DataTypes.DATE,
+    updatedAt: DataTypes.DATE,
   },
   {
-    timestamps: true,
+    sequelize,
+    tableName: 'chat_sessions',
+    indexes: [
+      { fields: ['workspaceId'] },
+      { fields: ['userId'] },
+    ],
   }
 );
-
-export const ChatSession = mongoose.model<IChatSession>('ChatSession', ChatSessionSchema);

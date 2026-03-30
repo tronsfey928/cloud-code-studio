@@ -5,10 +5,10 @@ import { config } from '../config';
 import { logger } from '../utils/logger';
 import { JwtPayload, MessageType } from '../types';
 import { ChatSession } from '../models/ChatSession';
+import { ChatMessage } from '../models/ChatMessage';
 import { Workspace } from '../models/Workspace';
 import { openCodeService } from '../services/opencodeService';
 import { containerManager } from '../services/containerService';
-import mongoose from 'mongoose';
 
 interface AuthenticatedSocket extends Socket {
   user?: JwtPayload;
@@ -39,8 +39,7 @@ export function setupWebSocket(io: Server): void {
     socket.on('join_session', async ({ sessionId }: { sessionId: string }) => {
       try {
         const session = await ChatSession.findOne({
-          _id: sessionId,
-          userId: new mongoose.Types.ObjectId(socket.user!.userId),
+          where: { id: sessionId, userId: socket.user!.userId },
         });
 
         if (!session) {
@@ -48,8 +47,10 @@ export function setupWebSocket(io: Server): void {
           return;
         }
 
+        const messageCount = await ChatMessage.count({ where: { sessionId } });
+
         await socket.join(`session:${sessionId}`);
-        socket.emit('session_joined', { sessionId, messageCount: session.messages.length });
+        socket.emit('session_joined', { sessionId, messageCount });
         logger.info('Socket joined session', { socketId: socket.id, sessionId });
       } catch (error) {
         logger.error('join_session error', { error });
@@ -62,32 +63,31 @@ export function setupWebSocket(io: Server): void {
       async ({ sessionId, content }: { sessionId: string; content: string }) => {
         try {
           const session = await ChatSession.findOne({
-            _id: sessionId,
-            userId: new mongoose.Types.ObjectId(socket.user!.userId),
-          }).populate<{ workspaceId: { containerId?: string } }>('workspaceId', 'containerId');
+            where: { id: sessionId, userId: socket.user!.userId },
+          });
 
           if (!session) {
             socket.emit('error', { message: 'Session not found' });
             return;
           }
 
-          const workspace = session.workspaceId as unknown as { containerId?: string };
+          const workspace = await Workspace.findByPk(session.workspaceId);
           if (!workspace?.containerId) {
             socket.emit('error', { message: 'Workspace container is not running' });
             return;
           }
 
           const userMsgId = uuidv4();
-          const userMsg = {
+          const userMsg = await ChatMessage.create({
             id: userMsgId,
+            sessionId,
             type: MessageType.CHAT_MESSAGE,
             content,
             timestamp: Date.now(),
             isStreaming: false,
-            role: 'user' as const,
-          };
-          session.messages.push(userMsg);
-          io.to(`session:${sessionId}`).emit('message', userMsg);
+            role: 'user',
+          });
+          io.to(`session:${sessionId}`).emit('message', userMsg.toJSON());
 
           const assistantMsgId = uuidv4();
           let fullContent = '';
@@ -110,18 +110,20 @@ export function setupWebSocket(io: Server): void {
             });
           }
 
-          const assistantMsg = {
+          const assistantMsg = await ChatMessage.create({
             id: assistantMsgId,
+            sessionId,
             type: MessageType.CHAT_MESSAGE,
             content: fullContent,
             timestamp: Date.now(),
             isStreaming: false,
-            role: 'assistant' as const,
-          };
-          session.messages.push(assistantMsg);
-          await session.save();
+            role: 'assistant',
+          });
 
-          io.to(`session:${sessionId}`).emit('message_complete', assistantMsg);
+          // Touch updatedAt on session
+          await session.update({ updatedAt: new Date() });
+
+          io.to(`session:${sessionId}`).emit('message_complete', assistantMsg.toJSON());
         } catch (error) {
           logger.error('chat_message error', { error });
           socket.emit('error', { message: 'Failed to process message' });
@@ -142,8 +144,7 @@ export function setupWebSocket(io: Server): void {
       }) => {
         try {
           const workspace = await Workspace.findOne({
-            _id: workspaceId,
-            userId: new mongoose.Types.ObjectId(socket.user!.userId),
+            where: { id: workspaceId, userId: socket.user!.userId },
           });
 
           if (!workspace?.containerId) {
@@ -166,8 +167,7 @@ export function setupWebSocket(io: Server): void {
       async ({ workspaceId }: { workspaceId: string }) => {
         try {
           const workspace = await Workspace.findOne({
-            _id: workspaceId,
-            userId: new mongoose.Types.ObjectId(socket.user!.userId),
+            where: { id: workspaceId, userId: socket.user!.userId },
           });
 
           if (!workspace?.containerId) {

@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt, { SignOptions } from 'jsonwebtoken';
+import { Op } from 'sequelize';
 import { User } from '../models/User';
 import { config } from '../config';
 import { logger } from '../utils/logger';
@@ -26,7 +27,9 @@ export async function register(
       return next(createError('Password must be at least 8 characters', 400));
     }
 
-    const existing = await User.findOne({ $or: [{ email }, { username }] });
+    const existing = await User.findOne({
+      where: { [Op.or]: [{ email }, { username }] },
+    });
     if (existing) {
       return next(createError('User already exists with that email or username', 409));
     }
@@ -35,13 +38,13 @@ export async function register(
 
     const signOptions: SignOptions = { expiresIn: config.jwtExpiry as SignOptions['expiresIn'] };
     const token = jwt.sign(
-      { userId: user.id as string, email: user.email, username: user.username },
+      { userId: user.id, email: user.email, username: user.username },
       config.jwtSecret,
       signOptions
     );
 
     logger.info('User registered', { userId: user.id, email });
-    res.status(201).json({ success: true, token, user });
+    res.status(201).json({ success: true, token, user: user.toSafeJSON() });
   } catch (error) {
     next(error);
   }
@@ -59,7 +62,7 @@ export async function login(
       return next(createError('email and password are required', 400));
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ where: { email } });
     if (!user || !(await user.comparePassword(password))) {
       return next(createError('Invalid credentials', 401));
     }
@@ -69,13 +72,13 @@ export async function login(
 
     const signOptions: SignOptions = { expiresIn: config.jwtExpiry as SignOptions['expiresIn'] };
     const token = jwt.sign(
-      { userId: user.id as string, email: user.email, username: user.username },
+      { userId: user.id, email: user.email, username: user.username },
       config.jwtSecret,
       signOptions
     );
 
     logger.info('User logged in', { userId: user.id, email });
-    res.json({ success: true, token, user });
+    res.json({ success: true, token, user: user.toSafeJSON() });
   } catch (error) {
     next(error);
   }
@@ -87,7 +90,9 @@ export async function getMe(
   next: NextFunction
 ): Promise<void> {
   try {
-    const user = await User.findById(req.user?.userId).select('-passwordHash');
+    const user = await User.findByPk(req.user?.userId, {
+      attributes: { exclude: ['passwordHash'] },
+    });
     if (!user) return next(createError('User not found', 404));
     res.json({ success: true, user });
   } catch (error) {
@@ -114,7 +119,7 @@ export async function changePassword(
       return next(createError('New password must be at least 8 characters', 400));
     }
 
-    const user = await User.findById(req.user?.userId);
+    const user = await User.findByPk(req.user?.userId);
     if (!user) return next(createError('User not found', 404));
 
     if (!(await user.comparePassword(currentPassword))) {

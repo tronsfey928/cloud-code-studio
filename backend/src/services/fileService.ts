@@ -3,7 +3,6 @@ import { containerManager } from './containerService';
 import { FileRecord } from '../models/FileRecord';
 import { logger } from '../utils/logger';
 import { FileTreeNode, FileContent, FileUploadResult } from '../types';
-import mongoose from 'mongoose';
 
 export class FileService {
   async uploadFile(
@@ -52,8 +51,8 @@ export class FileService {
     };
 
     await FileRecord.create({
-      sessionId: new mongoose.Types.ObjectId(sessionId),
-      workspaceId: new mongoose.Types.ObjectId(workspaceId),
+      sessionId,
+      workspaceId,
       filename: file.originalname,
       path: fullPath,
       size: file.size,

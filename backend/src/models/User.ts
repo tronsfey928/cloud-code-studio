@@ -1,64 +1,82 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import {
+  Model,
+  DataTypes,
+  InferAttributes,
+  InferCreationAttributes,
+  CreationOptional,
+} from 'sequelize';
 import bcrypt from 'bcryptjs';
+import { sequelize } from '../config/database';
 
-export interface IUser extends Document {
-  username: string;
-  email: string;
-  passwordHash: string;
-  createdAt: Date;
-  lastLoginAt?: Date;
-  comparePassword(candidate: string): Promise<boolean>;
+export class User extends Model<
+  InferAttributes<User>,
+  InferCreationAttributes<User>
+> {
+  declare id: CreationOptional<string>;
+  declare username: string;
+  declare email: string;
+  declare passwordHash: string;
+  declare lastLoginAt: CreationOptional<Date | null>;
+  declare createdAt: CreationOptional<Date>;
+  declare updatedAt: CreationOptional<Date>;
+
+  async comparePassword(candidate: string): Promise<boolean> {
+    return bcrypt.compare(candidate, this.passwordHash);
+  }
+
+  toSafeJSON(): Omit<User['dataValues'], 'passwordHash'> {
+    const values = this.toJSON() as Record<string, unknown>;
+    delete values['passwordHash'];
+    return values as Omit<User['dataValues'], 'passwordHash'>;
+  }
 }
 
-const UserSchema = new Schema<IUser>(
+User.init(
   {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true,
+    },
     username: {
-      type: String,
-      required: true,
+      type: DataTypes.STRING(50),
+      allowNull: false,
       unique: true,
-      trim: true,
-      minlength: 3,
-      maxlength: 50,
+      validate: {
+        len: [3, 50],
+      },
     },
     email: {
-      type: String,
-      required: true,
+      type: DataTypes.STRING(255),
+      allowNull: false,
       unique: true,
-      trim: true,
-      lowercase: true,
-      match: [/^\S+@\S+\.\S+$/, 'Invalid email format'],
+      validate: {
+        isEmail: true,
+      },
     },
     passwordHash: {
-      type: String,
-      required: true,
+      type: DataTypes.STRING(255),
+      allowNull: false,
     },
     lastLoginAt: {
-      type: Date,
+      type: DataTypes.DATE,
+      allowNull: true,
     },
+    createdAt: DataTypes.DATE,
+    updatedAt: DataTypes.DATE,
   },
   {
-    timestamps: { createdAt: 'createdAt', updatedAt: false },
+    sequelize,
+    tableName: 'users',
+    hooks: {
+      beforeCreate: async (user) => {
+        user.passwordHash = await bcrypt.hash(user.passwordHash, 12);
+      },
+      beforeUpdate: async (user) => {
+        if (user.changed('passwordHash')) {
+          user.passwordHash = await bcrypt.hash(user.passwordHash, 12);
+        }
+      },
+    },
   }
 );
-
-UserSchema.pre('save', async function (next) {
-  if (!this.isModified('passwordHash')) return next();
-  this.passwordHash = await bcrypt.hash(this.passwordHash, 12);
-  next();
-});
-
-UserSchema.methods.comparePassword = async function (
-  candidate: string
-): Promise<boolean> {
-  return bcrypt.compare(candidate, this.passwordHash);
-};
-
-UserSchema.set('toJSON', {
-  transform: (_doc, ret) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    delete (ret as any).passwordHash;
-    return ret;
-  },
-});
-
-export const User = mongoose.model<IUser>('User', UserSchema);

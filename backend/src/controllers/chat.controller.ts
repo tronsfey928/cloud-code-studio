@@ -1,12 +1,12 @@
 import { Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { ChatSession } from '../models/ChatSession';
+import { ChatMessage } from '../models/ChatMessage';
 import { Workspace } from '../models/Workspace';
 import { openCodeService } from '../services/opencodeService';
 import { AuthenticatedRequest, MessageType } from '../types';
 import { createError } from '../middleware/errorHandler';
 import { logger } from '../utils/logger';
-import mongoose from 'mongoose';
 
 export async function createSession(
   req: AuthenticatedRequest,
@@ -18,15 +18,13 @@ export async function createSession(
     if (!workspaceId) return next(createError('workspaceId is required', 400));
 
     const workspace = await Workspace.findOne({
-      _id: workspaceId,
-      userId: new mongoose.Types.ObjectId(req.user!.userId),
+      where: { id: workspaceId, userId: req.user!.userId },
     });
     if (!workspace) return next(createError('Workspace not found', 404));
 
     const session = await ChatSession.create({
-      workspaceId: new mongoose.Types.ObjectId(workspaceId),
-      userId: new mongoose.Types.ObjectId(req.user!.userId),
-      messages: [],
+      workspaceId,
+      userId: req.user!.userId,
     });
 
     res.status(201).json({ success: true, session });
@@ -42,16 +40,15 @@ export async function getSessions(
 ): Promise<void> {
   try {
     const { workspaceId } = req.query as { workspaceId?: string };
-    const query: Record<string, unknown> = {
-      userId: new mongoose.Types.ObjectId(req.user!.userId),
-    };
+    const where: Record<string, string> = { userId: req.user!.userId };
     if (workspaceId) {
-      query.workspaceId = new mongoose.Types.ObjectId(workspaceId);
+      where.workspaceId = workspaceId;
     }
 
-    const sessions = await ChatSession.find(query)
-      .sort({ updatedAt: -1 })
-      .select('-messages');
+    const sessions = await ChatSession.findAll({
+      where,
+      order: [['updatedAt', 'DESC']],
+    });
     res.json({ success: true, sessions });
   } catch (error) {
     next(error);
@@ -65,11 +62,16 @@ export async function getSession(
 ): Promise<void> {
   try {
     const session = await ChatSession.findOne({
-      _id: req.params.id,
-      userId: new mongoose.Types.ObjectId(req.user!.userId),
+      where: { id: req.params.id, userId: req.user!.userId },
     });
     if (!session) return next(createError('Session not found', 404));
-    res.json({ success: true, session });
+
+    const messages = await ChatMessage.findAll({
+      where: { sessionId: session.id },
+      order: [['timestamp', 'ASC']],
+    });
+
+    res.json({ success: true, session: { ...session.toJSON(), messages } });
   } catch (error) {
     next(error);
   }
@@ -85,27 +87,24 @@ export async function sendMessage(
     if (!content) return next(createError('content is required', 400));
 
     const session = await ChatSession.findOne({
-      _id: req.params.id,
-      userId: new mongoose.Types.ObjectId(req.user!.userId),
-    }).populate<{ workspaceId: { containerId?: string } }>('workspaceId', 'containerId');
-
+      where: { id: req.params.id, userId: req.user!.userId },
+    });
     if (!session) return next(createError('Session not found', 404));
 
-    const workspace = session.workspaceId as unknown as { containerId?: string };
+    const workspace = await Workspace.findByPk(session.workspaceId);
     if (!workspace?.containerId) {
       return next(createError('Workspace container is not running', 400));
     }
 
-    const userMsg = {
+    const userMsg = await ChatMessage.create({
       id: uuidv4(),
+      sessionId: session.id,
       type: MessageType.CHAT_MESSAGE,
       content,
       timestamp: Date.now(),
       isStreaming: false,
-      role: 'user' as const,
-    };
-
-    session.messages.push(userMsg);
+      role: 'user',
+    });
 
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -126,17 +125,20 @@ export async function sendMessage(
       logger.error('Stream error', { sessionId: session.id, streamError });
     }
 
-    const assistantMsg = {
+    await ChatMessage.create({
       id: assistantMsgId,
+      sessionId: session.id,
       type: MessageType.CHAT_MESSAGE,
       content: fullContent,
       timestamp: Date.now(),
       isStreaming: false,
-      role: 'assistant' as const,
-    };
+      role: 'assistant',
+    });
 
-    session.messages.push(assistantMsg);
-    await session.save();
+    // Touch updatedAt on session
+    await session.update({ updatedAt: new Date() });
+
+    logger.info('Message exchange saved', { sessionId: session.id, userMsgId: userMsg.id });
 
     res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
     res.end();
@@ -151,11 +153,13 @@ export async function deleteSession(
   next: NextFunction
 ): Promise<void> {
   try {
-    const session = await ChatSession.findOneAndDelete({
-      _id: req.params.id,
-      userId: new mongoose.Types.ObjectId(req.user!.userId),
+    const session = await ChatSession.findOne({
+      where: { id: req.params.id, userId: req.user!.userId },
     });
     if (!session) return next(createError('Session not found', 404));
+
+    await ChatMessage.destroy({ where: { sessionId: session.id } });
+    await session.destroy();
     res.json({ success: true, message: 'Session deleted' });
   } catch (error) {
     next(error);

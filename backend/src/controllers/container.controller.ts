@@ -4,16 +4,12 @@ import { containerManager } from '../services/containerService';
 import { AuthenticatedRequest } from '../types';
 import { createError } from '../middleware/errorHandler';
 import { logger } from '../utils/logger';
-import mongoose from 'mongoose';
 
 async function getWorkspaceAndContainer(
   workspaceId: string,
   userId: string
-): Promise<{ workspace: InstanceType<typeof Workspace>; containerId: string }> {
-  const workspace = await Workspace.findOne({
-    _id: workspaceId,
-    userId: new mongoose.Types.ObjectId(userId),
-  });
+): Promise<{ workspace: Workspace; containerId: string }> {
+  const workspace = await Workspace.findOne({ where: { id: workspaceId, userId } });
   if (!workspace) throw createError('Workspace not found', 404);
   if (!workspace.containerId) throw createError('No container for this workspace', 400);
   return { workspace, containerId: workspace.containerId };
@@ -43,8 +39,7 @@ export async function startContainer(
 ): Promise<void> {
   try {
     const workspace = await Workspace.findOne({
-      _id: req.params.workspaceId,
-      userId: new mongoose.Types.ObjectId(req.user!.userId),
+      where: { id: req.params.workspaceId, userId: req.user!.userId },
     });
     if (!workspace) return next(createError('Workspace not found', 404));
 
@@ -54,7 +49,7 @@ export async function startContainer(
     }
 
     const containerId = await containerManager.createAndStart(
-      workspace.id as string,
+      workspace.id,
       workspace.repositoryUrl,
       workspace.branch,
       {
@@ -63,7 +58,10 @@ export async function startContainer(
       }
     );
 
-    await Workspace.findByIdAndUpdate(workspace.id, { containerId, status: 'running' });
+    await Workspace.update(
+      { containerId, status: 'running' },
+      { where: { id: workspace.id } }
+    );
     logger.info('Container started', { workspaceId: workspace.id, containerId });
     res.json({ success: true, containerId });
   } catch (error) {
@@ -83,7 +81,7 @@ export async function stopContainer(
     );
 
     await containerManager.stop(containerId);
-    await Workspace.findByIdAndUpdate(workspace.id, { status: 'stopped' });
+    await Workspace.update({ status: 'stopped' }, { where: { id: workspace.id } });
     res.json({ success: true, message: 'Container stopped' });
   } catch (error) {
     next(error);

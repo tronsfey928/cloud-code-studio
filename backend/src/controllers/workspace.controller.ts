@@ -4,7 +4,6 @@ import { containerManager } from '../services/containerService';
 import { AuthenticatedRequest } from '../types';
 import { createError } from '../middleware/errorHandler';
 import { logger } from '../utils/logger';
-import mongoose from 'mongoose';
 
 export async function createWorkspace(
   req: AuthenticatedRequest,
@@ -23,7 +22,7 @@ export async function createWorkspace(
       return next(createError('name and repositoryUrl are required', 400));
     }
 
-    const userId = new mongoose.Types.ObjectId(req.user!.userId);
+    const userId = req.user!.userId;
 
     const workspace = await Workspace.create({
       userId,
@@ -31,14 +30,23 @@ export async function createWorkspace(
       repositoryUrl,
       branch,
       status: 'creating',
-      config: wsConfig || {},
+      config: wsConfig
+        ? {
+            resources: {
+              cpu: wsConfig.resources?.cpu ?? '0.5',
+              memory: wsConfig.resources?.memory ?? '512m',
+              storage: wsConfig.resources?.storage ?? '1g',
+            },
+            environment: wsConfig.environment ?? {},
+          }
+        : undefined,
     });
 
     // Start container asynchronously
     setImmediate(async () => {
       try {
         const containerId = await containerManager.createAndStart(
-          workspace.id as string,
+          workspace.id,
           repositoryUrl,
           branch,
           {
@@ -46,13 +54,13 @@ export async function createWorkspace(
             memory: workspace.config.resources.memory,
           }
         );
-        await Workspace.findByIdAndUpdate(workspace.id, {
-          containerId,
-          status: 'running',
-        });
+        await Workspace.update(
+          { containerId, status: 'running' },
+          { where: { id: workspace.id } }
+        );
         logger.info('Workspace container started', { workspaceId: workspace.id, containerId });
       } catch (err) {
-        await Workspace.findByIdAndUpdate(workspace.id, { status: 'error' });
+        await Workspace.update({ status: 'error' }, { where: { id: workspace.id } });
         logger.error('Failed to start workspace container', { workspaceId: workspace.id, err });
       }
     });
@@ -69,8 +77,10 @@ export async function listWorkspaces(
   next: NextFunction
 ): Promise<void> {
   try {
-    const userId = new mongoose.Types.ObjectId(req.user!.userId);
-    const workspaces = await Workspace.find({ userId }).sort({ lastAccessedAt: -1 });
+    const workspaces = await Workspace.findAll({
+      where: { userId: req.user!.userId },
+      order: [['lastAccessedAt', 'DESC']],
+    });
     res.json({ success: true, workspaces });
   } catch (error) {
     next(error);
@@ -84,8 +94,7 @@ export async function getWorkspace(
 ): Promise<void> {
   try {
     const workspace = await Workspace.findOne({
-      _id: req.params.id,
-      userId: new mongoose.Types.ObjectId(req.user!.userId),
+      where: { id: req.params.id, userId: req.user!.userId },
     });
     if (!workspace) return next(createError('Workspace not found', 404));
 
@@ -105,8 +114,7 @@ export async function deleteWorkspace(
 ): Promise<void> {
   try {
     const workspace = await Workspace.findOne({
-      _id: req.params.id,
-      userId: new mongoose.Types.ObjectId(req.user!.userId),
+      where: { id: req.params.id, userId: req.user!.userId },
     });
     if (!workspace) return next(createError('Workspace not found', 404));
 
@@ -122,7 +130,7 @@ export async function deleteWorkspace(
       }
     }
 
-    await workspace.deleteOne();
+    await workspace.destroy();
     res.json({ success: true, message: 'Workspace deleted' });
   } catch (error) {
     next(error);
