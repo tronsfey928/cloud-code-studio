@@ -21,7 +21,7 @@ export interface Workspace {
   name: string;
   repositoryUrl: string;
   branch: string;
-  status: 'creating' | 'running' | 'stopped' | 'error';
+  status: 'creating' | 'ready' | 'error';
   createdAt: string;
   lastAccessedAt: string;
 }

@@ -92,8 +92,8 @@ export async function sendMessage(
     if (!session) return next(createError('Session not found', 404));
 
     const workspace = await Workspace.findByPk(session.workspaceId);
-    if (!workspace?.containerId) {
-      return next(createError('Workspace container is not running', 400));
+    if (!workspace?.workspacePath) {
+      return next(createError('Workspace is not ready', 400));
     }
 
     const userMsg = await ChatMessage.create({
@@ -115,7 +115,7 @@ export async function sendMessage(
 
     try {
       for await (const chunk of openCodeService.streamResponse(
-        workspace.containerId,
+        workspace.workspacePath,
         content
       )) {
         fullContent += chunk.content;

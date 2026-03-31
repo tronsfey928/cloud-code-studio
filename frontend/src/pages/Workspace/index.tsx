@@ -1,10 +1,8 @@
 import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Layout, Button, Breadcrumb, Badge, Spin, Tooltip, message, Tag } from 'antd';
+import { Layout, Button, Breadcrumb, Badge, Spin, Tooltip, Tag } from 'antd';
 import {
   ArrowLeftOutlined,
-  PlayCircleOutlined,
-  PauseCircleOutlined,
   HomeOutlined,
   CodeOutlined,
   SettingOutlined,
@@ -25,10 +23,9 @@ const { Header, Content, Sider } = Layout;
 const Workspace: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { workspaces, fetchWorkspaces, currentWorkspace, setCurrentWorkspace, startWorkspace, stopWorkspace } =
+  const { workspaces, fetchWorkspaces, currentWorkspace, setCurrentWorkspace } =
     useWorkspaceStore();
   const { setSessionId, sessionId, devServer, setDevServer, workspaceInfo } = useChatStore();
-  const [wsLoading, setWsLoading] = React.useState(false);
   const [settingsOpen, setSettingsOpen] = React.useState(false);
 
   useEffect(() => {
@@ -61,38 +58,10 @@ const Workspace: React.FC = () => {
       });
   }, [id, setSessionId]);
 
-  const handleStart = async () => {
-    if (!id) return;
-    setWsLoading(true);
-    try {
-      await startWorkspace(id);
-      void message.success('Workspace started');
-    } catch {
-      void message.error('Failed to start workspace');
-    } finally {
-      setWsLoading(false);
-    }
-  };
-
-  const handleStop = async () => {
-    if (!id) return;
-    setWsLoading(true);
-    try {
-      await stopWorkspace(id);
-      void message.success('Workspace stopped');
-    } catch {
-      void message.error('Failed to stop workspace');
-    } finally {
-      setWsLoading(false);
-    }
-  };
-
   if (!id) {
     navigate('/dashboard');
     return null;
   }
-
-  const isRunning = currentWorkspace?.status === 'running';
 
   return (
     <Layout className="h-screen overflow-hidden">
@@ -140,13 +109,11 @@ const Workspace: React.FC = () => {
           {currentWorkspace && (
             <Badge
               status={
-                currentWorkspace.status === 'running'
+                currentWorkspace.status === 'ready'
                   ? 'success'
                   : currentWorkspace.status === 'creating'
                   ? 'processing'
-                  : currentWorkspace.status === 'error'
-                  ? 'error'
-                  : 'default'
+                  : 'error'
               }
               text={
                 <span className="text-xs text-gray-300 capitalize">
@@ -164,33 +131,6 @@ const Workspace: React.FC = () => {
               ghost
             />
           </Tooltip>
-          {isRunning ? (
-            <Tooltip title="Stop workspace">
-              <Button
-                icon={<PauseCircleOutlined />}
-                size="small"
-                loading={wsLoading}
-                onClick={() => void handleStop()}
-                className="text-orange-400 border-orange-400 hover:text-orange-300 hover:border-orange-300"
-                ghost
-              >
-                Stop
-              </Button>
-            </Tooltip>
-          ) : (
-            <Tooltip title="Start workspace">
-              <Button
-                icon={<PlayCircleOutlined />}
-                size="small"
-                loading={wsLoading}
-                onClick={() => void handleStart()}
-                disabled={currentWorkspace?.status === 'creating'}
-                type="primary"
-              >
-                Start
-              </Button>
-            </Tooltip>
-          )}
         </div>
       </Header>
 

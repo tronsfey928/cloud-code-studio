@@ -8,7 +8,6 @@ import { ChatSession } from '../models/ChatSession';
 import { ChatMessage } from '../models/ChatMessage';
 import { Workspace } from '../models/Workspace';
 import { openCodeService } from '../services/opencodeService';
-import { containerManager } from '../services/containerService';
 
 interface AuthenticatedSocket extends Socket {
   user?: JwtPayload;
@@ -56,9 +55,9 @@ export function setupWebSocket(io: Server): void {
 
         // Push workspace info on join
         const workspace = await Workspace.findByPk(session.workspaceId);
-        if (workspace?.containerId) {
+        if (workspace?.workspacePath) {
           try {
-            const wsInfo = await openCodeService.getWorkspaceInfo(workspace.containerId);
+            const wsInfo = await openCodeService.getWorkspaceInfo(workspace.workspacePath);
             socket.emit('workspace_info', {
               workspaceId: workspace.id,
               ...wsInfo,
@@ -99,8 +98,8 @@ export function setupWebSocket(io: Server): void {
           }
 
           const workspace = await Workspace.findByPk(session.workspaceId);
-          if (!workspace?.containerId) {
-            socket.emit('error', { message: 'Workspace container is not running' });
+          if (!workspace?.workspacePath) {
+            socket.emit('error', { message: 'Workspace is not ready' });
             return;
           }
 
@@ -139,7 +138,7 @@ export function setupWebSocket(io: Server): void {
 
           // Use the full coding session stream
           for await (const event of openCodeService.streamCodingSession(
-            workspace.containerId,
+            workspace.workspacePath,
             content,
             {
               planMode,
@@ -237,13 +236,13 @@ export function setupWebSocket(io: Server): void {
             where: { id: workspaceId, userId: socket.user!.userId },
           });
 
-          if (!workspace?.containerId) {
-            socket.emit('error', { message: 'Workspace not running' });
+          if (!workspace?.workspacePath) {
+            socket.emit('error', { message: 'Workspace not ready' });
             return;
           }
 
           socket.emit('execution_start', { sessionId, command });
-          const result = await openCodeService.executeCommand(workspace.containerId, command);
+          const result = await openCodeService.executeCommand(workspace.workspacePath, command);
           socket.emit('execution_complete', { sessionId, result });
         } catch (error) {
           logger.error('code_execution error', { error });
@@ -271,13 +270,13 @@ export function setupWebSocket(io: Server): void {
             where: { id: workspaceId, userId: socket.user!.userId },
           });
 
-          if (!workspace?.containerId) {
-            socket.emit('error', { message: 'Workspace not running' });
+          if (!workspace?.workspacePath) {
+            socket.emit('error', { message: 'Workspace not ready' });
             return;
           }
 
           const result = await openCodeService.startDevServer(
-            workspace.containerId,
+            workspace.workspacePath,
             command,
             port
           );
@@ -290,29 +289,6 @@ export function setupWebSocket(io: Server): void {
         } catch (error) {
           logger.error('start_dev_server error', { error });
           socket.emit('error', { message: 'Failed to start dev server' });
-        }
-      }
-    );
-
-    // ─── Container Status ────────────────────────────────────────
-    socket.on(
-      'container_status',
-      async ({ workspaceId }: { workspaceId: string }) => {
-        try {
-          const workspace = await Workspace.findOne({
-            where: { id: workspaceId, userId: socket.user!.userId },
-          });
-
-          if (!workspace?.containerId) {
-            socket.emit('container_status_update', { workspaceId, status: workspace?.status || 'unknown' });
-            return;
-          }
-
-          const status = await containerManager.getStatus(workspace.containerId);
-          socket.emit('container_status_update', { workspaceId, status });
-        } catch (error) {
-          logger.error('container_status error', { error });
-          socket.emit('error', { message: 'Failed to get container status' });
         }
       }
     );
