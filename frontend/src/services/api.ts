@@ -38,10 +38,12 @@ api.interceptors.response.use(
   (error: AxiosError) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
-      // Hard redirect is intentional here: the interceptor runs outside React's
-      // component tree and cannot use React Router's navigate. This ensures a
-      // clean slate on session expiry without circular imports.
-      window.location.href = '/login';
+      // Avoid redirect loop: only redirect if not already on the login page.
+      // The interceptor runs outside React's component tree and cannot use
+      // React Router's navigate, so a hard redirect is intentional here.
+      if (!window.location.pathname.startsWith('/login')) {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   },

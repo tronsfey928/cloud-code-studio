@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Layout, Button, Breadcrumb, Badge, Spin, Tooltip, Tag } from 'antd';
+import { Layout, Button, Breadcrumb, Badge, Spin, Tooltip, Tag, message } from 'antd';
 import {
   ArrowLeftOutlined,
   HomeOutlined,
@@ -20,6 +20,19 @@ import type { ChatSession } from '@/types';
 
 const { Header, Content, Sider } = Layout;
 
+/** Only allow http(s) localhost URLs for the dev-server iframe */
+function isSafeDevServerUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return (
+      (parsed.protocol === 'http:' || parsed.protocol === 'https:') &&
+      (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1')
+    );
+  } catch {
+    return false;
+  }
+}
+
 const Workspace: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -27,6 +40,7 @@ const Workspace: React.FC = () => {
     useWorkspaceStore();
   const { setSessionId, sessionId, devServer, setDevServer, workspaceInfo } = useChatStore();
   const [settingsOpen, setSettingsOpen] = React.useState(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -41,21 +55,41 @@ const Workspace: React.FC = () => {
   // Fetch or create chat session for this workspace
   useEffect(() => {
     if (!id) return;
+
+    // Cancel any previous in-flight request
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     api
-      .get<ChatSession[]>('/chat/sessions', { params: { workspaceId: id } })
+      .get<ChatSession[]>('/chat/sessions', {
+        params: { workspaceId: id },
+        signal: controller.signal,
+      })
       .then(({ data }) => {
+        if (controller.signal.aborted) return;
         if (data.length > 0) {
           setSessionId(data[0].id);
         } else {
           return api
-            .post<ChatSession>('/chat/sessions', { workspaceId: id })
-            .then(({ data: session }) => setSessionId(session.id));
+            .post<ChatSession>('/chat/sessions', { workspaceId: id }, { signal: controller.signal })
+            .then(({ data: session }) => {
+              if (!controller.signal.aborted) {
+                setSessionId(session.id);
+              }
+            });
         }
       })
-      .catch(() => {
-        // Session endpoint may not exist yet; use workspace id as fallback
-        setSessionId(id);
+      .catch((err) => {
+        if (controller.signal.aborted) return;
+        // Log and show an error instead of silently falling back
+        console.error('Failed to load chat session', err);
+        void message.error('Failed to initialize chat session');
       });
+
+    return () => {
+      controller.abort();
+    };
   }, [id, setSessionId]);
 
   if (!id) {
@@ -155,7 +189,7 @@ const Workspace: React.FC = () => {
               className="border-l border-gray-200 overflow-hidden flex flex-col"
             >
               {/* Dev server iframe preview */}
-              {devServer && devServer.status === 'running' && (
+              {devServer && devServer.status === 'running' && isSafeDevServerUrl(devServer.url) && (
                 <div className="border-b border-gray-200 flex flex-col" style={{ height: '40%' }}>
                   <div className="flex items-center justify-between px-3 py-2 bg-green-50 border-b border-green-200 shrink-0">
                     <div className="flex items-center gap-2">
