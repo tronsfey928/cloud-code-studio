@@ -21,13 +21,17 @@ export function errorHandler(
   _next: NextFunction
 ): void {
   const statusCode = err.statusCode || 500;
-  const message = err.message || 'Internal Server Error';
+  // In production, hide internal error details for non-operational errors
+  const message =
+    err.isOperational || config.nodeEnv === 'development'
+      ? err.message
+      : 'Internal Server Error';
 
   logger.error('Request error', {
     method: req.method,
     url: req.url,
     statusCode,
-    message,
+    message: err.message,
     stack: config.nodeEnv === 'development' ? err.stack : undefined,
   });
 

@@ -61,6 +61,8 @@ const Dashboard: React.FC = () => {
       void message.success(`Workspace "${ws.name}" created`);
       setCreateModalOpen(false);
       createForm.resetFields();
+      // Refresh workspace list to include the newly created workspace
+      void fetchWorkspaces();
     } catch {
       void message.error('Failed to create workspace');
     } finally {

@@ -1,6 +1,21 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+const nodeEnv = process.env.NODE_ENV || 'development';
+const isProduction = nodeEnv === 'production';
+
+const jwtSecret = process.env.JWT_SECRET || 'your-secret-key';
+
+// Warn loudly in production when the JWT secret is the insecure default
+if (isProduction && jwtSecret === 'your-secret-key') {
+  // eslint-disable-next-line no-console
+  console.error(
+    '[SECURITY] JWT_SECRET is set to the default placeholder. ' +
+    'Set a strong, unique JWT_SECRET environment variable before running in production.'
+  );
+  process.exit(1);
+}
+
 export const config = {
   port: parseInt(process.env.PORT || '5000', 10),
   mysql: {
@@ -11,10 +26,10 @@ export const config = {
     database: process.env.MYSQL_DATABASE || 'cloudcode',
   },
   redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
-  jwtSecret: process.env.JWT_SECRET || 'your-secret-key',
+  jwtSecret,
   jwtExpiry: process.env.JWT_EXPIRY || '24h',
   allowedOrigins: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
-  nodeEnv: process.env.NODE_ENV || 'development',
+  nodeEnv,
   logLevel: process.env.LOG_LEVEL || 'info',
   maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760', 10),
   workspacesDir: process.env.WORKSPACES_DIR || '/data/workspaces',

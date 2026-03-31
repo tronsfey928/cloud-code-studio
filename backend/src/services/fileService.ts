@@ -1,5 +1,6 @@
 import path from 'path';
 import fs from 'fs/promises';
+import fsSync from 'fs';
 import { FileRecord } from '../models/FileRecord';
 import { logger } from '../utils/logger';
 import { FileTreeNode, FileContent, FileUploadResult } from '../types';
@@ -20,6 +21,8 @@ export class FileService {
 
     const sanitizedPath = this.sanitizePath(targetPath);
     const fullPath = path.join(workspacePath, sanitizedPath, file.originalname);
+
+    this.assertWithinWorkspace(fullPath, workspacePath);
 
     await fs.mkdir(path.dirname(fullPath), { recursive: true });
     await fs.writeFile(fullPath, file.buffer);
@@ -54,12 +57,14 @@ export class FileService {
 
     const sanitizedPath = this.sanitizePath(dirPath);
     const basePath = path.resolve(workspacePath, sanitizedPath);
+    this.assertWithinWorkspace(basePath, workspacePath);
     return this.buildFileTreeFromFs(basePath, depth);
   }
 
   async readFile(workspacePath: string, filePath: string): Promise<FileContent> {
     const sanitizedPath = this.sanitizePath(filePath);
     const fullPath = path.resolve(workspacePath, sanitizedPath);
+    this.assertWithinWorkspace(fullPath, workspacePath);
     logger.info('Reading file', { fullPath });
 
     const content = await fs.readFile(fullPath, 'utf8');
@@ -78,6 +83,7 @@ export class FileService {
   ): Promise<void> {
     const sanitizedPath = this.sanitizePath(filePath);
     const fullPath = path.resolve(workspacePath, sanitizedPath);
+    this.assertWithinWorkspace(fullPath, workspacePath);
     logger.info('Writing file', { fullPath });
 
     await fs.mkdir(path.dirname(fullPath), { recursive: true });
@@ -121,6 +127,32 @@ export class FileService {
       throw new Error('Path traversal detected');
     }
     return resolved;
+  }
+
+  /**
+   * Verify that a resolved path stays within the workspace directory.
+   * Uses realpath when the path exists to defeat symlink-based escapes.
+   */
+  private assertWithinWorkspace(targetPath: string, workspacePath: string): void {
+    const normalizedTarget = path.resolve(targetPath);
+    const normalizedWorkspace = path.resolve(workspacePath);
+
+    // If the file already exists, resolve through symlinks
+    if (fsSync.existsSync(normalizedTarget)) {
+      const realTarget = fsSync.realpathSync(normalizedTarget);
+      const realWorkspace = fsSync.realpathSync(normalizedWorkspace);
+      if (!realTarget.startsWith(realWorkspace + path.sep) && realTarget !== realWorkspace) {
+        throw new Error('Path traversal detected');
+      }
+    } else {
+      // For new files, verify the resolved path prefix
+      if (
+        !normalizedTarget.startsWith(normalizedWorkspace + path.sep) &&
+        normalizedTarget !== normalizedWorkspace
+      ) {
+        throw new Error('Path traversal detected');
+      }
+    }
   }
 }
 

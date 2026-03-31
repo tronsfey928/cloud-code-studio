@@ -36,13 +36,44 @@ export function useWebSocket(sessionId: string | null) {
   } = useChatStore();
   const streamingIdRef = useRef<string | null>(null);
 
-  const handleChatResponse = useCallback(
-    (payload: ChatResponsePayload) => {
+  // Store the latest callbacks in refs so the effect's listeners never go stale.
+  // This avoids the memory-leak problem of registering/unregistering listeners
+  // every time a callback dependency changes.
+  const handlersRef = useRef({
+    addMessage,
+    updateStreamingMessage,
+    setTyping,
+    setDevServer,
+    setWorkspaceInfo,
+  });
+  handlersRef.current = {
+    addMessage,
+    updateStreamingMessage,
+    setTyping,
+    setDevServer,
+    setWorkspaceInfo,
+  };
+
+  const planModeRef = useRef(planMode);
+  planModeRef.current = planMode;
+
+  // Stable connection effect that only re-runs when token or sessionId change
+  useEffect(() => {
+    if (!token || !sessionId) return;
+
+    const socket = wsService.connect(token);
+
+    const onConnect = () => {
+      wsService.joinSession(sessionId);
+    };
+
+    const onChatResponse = (payload: ChatResponsePayload) => {
       if (!payload) return;
+      const { addMessage: add, updateStreamingMessage: update, setTyping: typing } = handlersRef.current;
 
       if (payload.delta !== undefined) {
         if (!streamingIdRef.current) {
-          const newMsg = addMessage({
+          const newMsg = add({
             type: MessageType.CHAT_MESSAGE,
             content: payload.delta,
             isStreaming: true,
@@ -55,13 +86,13 @@ export function useWebSocket(sessionId: string | null) {
             .getState()
             .messages.find((m) => m.id === streamingIdRef.current);
           const updated = (current?.content ?? '') + payload.delta;
-          updateStreamingMessage(streamingIdRef.current, updated, false);
+          update(streamingIdRef.current, updated, false);
         }
       }
 
       if (payload.done) {
         if (streamingIdRef.current) {
-          updateStreamingMessage(
+          update(
             streamingIdRef.current,
             useChatStore
               .getState()
@@ -70,153 +101,113 @@ export function useWebSocket(sessionId: string | null) {
           );
           streamingIdRef.current = null;
         }
-        setTyping(false);
+        typing(false);
       }
 
       if (payload.content && !payload.delta) {
-        addMessage({
+        add({
           type: MessageType.CHAT_MESSAGE,
           content: payload.content,
           isUser: false,
           sessionId: payload.sessionId,
         });
-        setTyping(false);
+        typing(false);
       }
-    },
-    [addMessage, updateStreamingMessage, setTyping],
-  );
+    };
 
-  const handleExecutionOutput = useCallback(
-    (payload: ChatResponsePayload) => {
+    const onExecutionOutput = (payload: ChatResponsePayload) => {
       if (payload?.content) {
-        addMessage({
+        handlersRef.current.addMessage({
           type: MessageType.CODE_EXECUTION,
           content: payload.content,
           isUser: false,
         });
       }
-    },
-    [addMessage],
-  );
+    };
 
-  const handleToolCall = useCallback(
-    (payload: ToolCallData) => {
-      addMessage({
+    const onToolCall = (payload: ToolCallData) => {
+      handlersRef.current.addMessage({
         type: MessageType.TOOL_CALL,
         content: `Tool: ${payload.toolName}`,
         isUser: false,
         toolCall: payload,
       });
-    },
-    [addMessage],
-  );
+    };
 
-  const handleCodeChange = useCallback(
-    (payload: CodeChangeData) => {
-      addMessage({
+    const onCodeChange = (payload: CodeChangeData) => {
+      handlersRef.current.addMessage({
         type: MessageType.CODE_CHANGE,
         content: `${payload.changeType}: ${payload.filePath}`,
         isUser: false,
         codeChange: payload,
       });
-    },
-    [addMessage],
-  );
+    };
 
-  const handlePlanPending = useCallback(
-    (payload: PlanData) => {
-      addMessage({
+    const onPlanPending = (payload: PlanData) => {
+      handlersRef.current.addMessage({
         type: MessageType.PLAN,
         content: 'Plan requires your confirmation',
         isUser: false,
         plan: payload,
       });
-      setTyping(false);
-    },
-    [addMessage, setTyping],
-  );
+      handlersRef.current.setTyping(false);
+    };
 
-  const handleDevServerStarted = useCallback(
-    (payload: DevServerData) => {
-      setDevServer(payload);
-      addMessage({
+    const onDevServerStarted = (payload: DevServerData) => {
+      handlersRef.current.setDevServer(payload);
+      handlersRef.current.addMessage({
         type: MessageType.DEV_SERVER,
         content: `Dev server started at ${payload.url}`,
         isUser: false,
         devServer: payload,
       });
-    },
-    [addMessage, setDevServer],
-  );
+    };
 
-  const handleWorkspaceInfo = useCallback(
-    (payload: WorkspaceInfo) => {
-      setWorkspaceInfo(payload);
-    },
-    [setWorkspaceInfo],
-  );
+    const onWorkspaceInfo = (payload: WorkspaceInfo) => {
+      handlersRef.current.setWorkspaceInfo(payload);
+    };
 
-  const handleError = useCallback(
-    (payload: ErrorPayload) => {
-      addMessage({
+    const onError = (payload: ErrorPayload) => {
+      handlersRef.current.addMessage({
         type: MessageType.ERROR,
         content: payload?.message ?? 'An unexpected error occurred.',
         isUser: false,
       });
-      setTyping(false);
+      handlersRef.current.setTyping(false);
       streamingIdRef.current = null;
-    },
-    [addMessage, setTyping],
-  );
+    };
 
-  useEffect(() => {
-    if (!token || !sessionId) return;
-
-    const socket = wsService.connect(token);
-
-    socket.on('connect', () => {
-      wsService.joinSession(sessionId);
-    });
+    socket.on('connect', onConnect);
 
     if (wsService.isConnected) {
       wsService.joinSession(sessionId);
     }
 
-    wsService.on('chat_response', handleChatResponse as (...args: unknown[]) => void);
-    wsService.on('message_chunk', handleChatResponse as (...args: unknown[]) => void);
-    wsService.on('message_complete', handleChatResponse as (...args: unknown[]) => void);
-    wsService.on('execution_output', handleExecutionOutput as (...args: unknown[]) => void);
-    wsService.on('tool_call', handleToolCall as (...args: unknown[]) => void);
-    wsService.on('code_change', handleCodeChange as (...args: unknown[]) => void);
-    wsService.on('plan_pending', handlePlanPending as (...args: unknown[]) => void);
-    wsService.on('dev_server_started', handleDevServerStarted as (...args: unknown[]) => void);
-    wsService.on('workspace_info', handleWorkspaceInfo as (...args: unknown[]) => void);
-    wsService.on('error', handleError as (...args: unknown[]) => void);
+    wsService.on('chat_response', onChatResponse as (...args: unknown[]) => void);
+    wsService.on('message_chunk', onChatResponse as (...args: unknown[]) => void);
+    wsService.on('message_complete', onChatResponse as (...args: unknown[]) => void);
+    wsService.on('execution_output', onExecutionOutput as (...args: unknown[]) => void);
+    wsService.on('tool_call', onToolCall as (...args: unknown[]) => void);
+    wsService.on('code_change', onCodeChange as (...args: unknown[]) => void);
+    wsService.on('plan_pending', onPlanPending as (...args: unknown[]) => void);
+    wsService.on('dev_server_started', onDevServerStarted as (...args: unknown[]) => void);
+    wsService.on('workspace_info', onWorkspaceInfo as (...args: unknown[]) => void);
+    wsService.on('error', onError as (...args: unknown[]) => void);
 
     return () => {
-      wsService.off('chat_response', handleChatResponse as (...args: unknown[]) => void);
-      wsService.off('message_chunk', handleChatResponse as (...args: unknown[]) => void);
-      wsService.off('message_complete', handleChatResponse as (...args: unknown[]) => void);
-      wsService.off('execution_output', handleExecutionOutput as (...args: unknown[]) => void);
-      wsService.off('tool_call', handleToolCall as (...args: unknown[]) => void);
-      wsService.off('code_change', handleCodeChange as (...args: unknown[]) => void);
-      wsService.off('plan_pending', handlePlanPending as (...args: unknown[]) => void);
-      wsService.off('dev_server_started', handleDevServerStarted as (...args: unknown[]) => void);
-      wsService.off('workspace_info', handleWorkspaceInfo as (...args: unknown[]) => void);
-      wsService.off('error', handleError as (...args: unknown[]) => void);
+      socket.off('connect', onConnect);
+      wsService.off('chat_response', onChatResponse as (...args: unknown[]) => void);
+      wsService.off('message_chunk', onChatResponse as (...args: unknown[]) => void);
+      wsService.off('message_complete', onChatResponse as (...args: unknown[]) => void);
+      wsService.off('execution_output', onExecutionOutput as (...args: unknown[]) => void);
+      wsService.off('tool_call', onToolCall as (...args: unknown[]) => void);
+      wsService.off('code_change', onCodeChange as (...args: unknown[]) => void);
+      wsService.off('plan_pending', onPlanPending as (...args: unknown[]) => void);
+      wsService.off('dev_server_started', onDevServerStarted as (...args: unknown[]) => void);
+      wsService.off('workspace_info', onWorkspaceInfo as (...args: unknown[]) => void);
+      wsService.off('error', onError as (...args: unknown[]) => void);
     };
-  }, [
-    token,
-    sessionId,
-    handleChatResponse,
-    handleExecutionOutput,
-    handleToolCall,
-    handleCodeChange,
-    handlePlanPending,
-    handleDevServerStarted,
-    handleWorkspaceInfo,
-    handleError,
-  ]);
+  }, [token, sessionId]);
 
   const sendMessage = useCallback(
     (content: string, attachments?: FileAttachment[]) => {
@@ -229,9 +220,9 @@ export function useWebSocket(sessionId: string | null) {
         sessionId,
         attachments,
       });
-      wsService.sendChatMessage(sessionId, content, attachments, planMode);
+      wsService.sendChatMessage(sessionId, content, attachments, planModeRef.current);
     },
-    [sessionId, addMessage, setTyping, planMode],
+    [sessionId, addMessage, setTyping],
   );
 
   const confirmPlan = useCallback(

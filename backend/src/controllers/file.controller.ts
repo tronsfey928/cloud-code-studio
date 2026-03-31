@@ -4,6 +4,7 @@ import { fileService } from '../services/fileService';
 import { AuthenticatedRequest } from '../types';
 import { createError } from '../middleware/errorHandler';
 import { logger } from '../utils/logger';
+import { isValidRelativePath, MAX_FILE_CONTENT_LENGTH } from '../utils/validation';
 
 async function resolveWorkspace(workspaceId: string, userId: string) {
   const workspace = await Workspace.findOne({
@@ -22,7 +23,16 @@ export async function getFileTree(
   try {
     const workspace = await resolveWorkspace(req.params.workspaceId, req.user!.userId);
     const dirPath = (req.query.path as string) || '.';
+
+    if (dirPath !== '.' && !isValidRelativePath(dirPath)) {
+      return next(createError('Invalid directory path', 400));
+    }
+
     const depth = parseInt((req.query.depth as string) || '3', 10);
+    if (depth < 1 || depth > 10) {
+      return next(createError('Depth must be between 1 and 10', 400));
+    }
+
     const tree = await fileService.getFileTree(workspace.workspacePath!, dirPath, depth);
     res.json({ success: true, tree });
   } catch (error) {
@@ -39,6 +49,11 @@ export async function readFile(
     const workspace = await resolveWorkspace(req.params.workspaceId, req.user!.userId);
     const filePath = req.query.path as string;
     if (!filePath) return next(createError('path query parameter is required', 400));
+
+    if (!isValidRelativePath(filePath)) {
+      return next(createError('Invalid file path', 400));
+    }
+
     const file = await fileService.readFile(workspace.workspacePath!, filePath);
     res.json({ success: true, file });
   } catch (error) {
@@ -57,6 +72,15 @@ export async function writeFile(
     if (!filePath || content === undefined) {
       return next(createError('path and content are required', 400));
     }
+
+    if (!isValidRelativePath(filePath)) {
+      return next(createError('Invalid file path', 400));
+    }
+
+    if (typeof content === 'string' && content.length > MAX_FILE_CONTENT_LENGTH) {
+      return next(createError('File content exceeds maximum allowed size (10 MB)', 413));
+    }
+
     await fileService.writeFile(workspace.workspacePath!, filePath, content);
     res.json({ success: true, message: 'File written successfully' });
   } catch (error) {
@@ -75,6 +99,10 @@ export async function uploadFile(
 
     if (!req.file) return next(createError('No file uploaded', 400));
     if (!sessionId) return next(createError('sessionId is required', 400));
+
+    if (targetPath !== '/' && !isValidRelativePath(targetPath)) {
+      return next(createError('Invalid target path', 400));
+    }
 
     const result = await fileService.uploadFile(
       sessionId,

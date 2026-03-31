@@ -7,6 +7,7 @@ import { openCodeService } from '../services/opencodeService';
 import { AuthenticatedRequest, MessageType } from '../types';
 import { createError } from '../middleware/errorHandler';
 import { logger } from '../utils/logger';
+import { MAX_MESSAGE_LENGTH } from '../utils/validation';
 
 export async function createSession(
   req: AuthenticatedRequest,
@@ -85,6 +86,9 @@ export async function sendMessage(
   try {
     const { content } = req.body as { content: string };
     if (!content) return next(createError('content is required', 400));
+    if (content.length > MAX_MESSAGE_LENGTH) {
+      return next(createError('Message content exceeds maximum allowed length', 413));
+    }
 
     const session = await ChatSession.findOne({
       where: { id: req.params.id, userId: req.user!.userId },
@@ -123,6 +127,8 @@ export async function sendMessage(
       }
     } catch (streamError) {
       logger.error('Stream error', { sessionId: session.id, streamError });
+      const errorMsg = streamError instanceof Error ? streamError.message : 'Unknown error';
+      res.write(`data: ${JSON.stringify({ error: `Stream processing failed: ${errorMsg}` })}\n\n`);
     }
 
     await ChatMessage.create({

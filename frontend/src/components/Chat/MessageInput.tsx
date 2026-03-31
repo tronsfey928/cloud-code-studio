@@ -1,5 +1,5 @@
 import React, { useState, useRef, KeyboardEvent } from 'react';
-import { Button, Upload, Tooltip, Switch } from 'antd';
+import { Button, Upload, Tooltip, Switch, message } from 'antd';
 import {
   SendOutlined,
   PaperClipOutlined,
@@ -33,6 +33,9 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSend, disabled }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { planMode, setPlanMode } = useChatStore();
 
+  /** Maximum file size: 5 MB */
+  const MAX_FILE_SIZE = 5 * 1024 * 1024;
+
   const handleSend = async () => {
     const trimmed = value.trim();
     if (!trimmed) return;
@@ -40,6 +43,9 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSend, disabled }) => {
     const attachments: FileAttachment[] = [];
 
     for (const f of fileList) {
+      // Enforce per-file size limit
+      if (f.size && f.size > MAX_FILE_SIZE) continue;
+
       const isImage = f.type?.startsWith('image/');
       let data: string | undefined;
 
@@ -70,10 +76,15 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSend, disabled }) => {
   };
 
   const handleFileChange = async ({ fileList: fl }: { fileList: UploadFile[] }) => {
-    setFileList(fl);
+    // Filter out files exceeding the size limit
+    const accepted = fl.filter((f) => !f.size || f.size <= MAX_FILE_SIZE);
+    if (accepted.length < fl.length) {
+      void message.warning('Some files exceeded the 5 MB limit and were removed.');
+    }
+    setFileList(accepted);
     // Generate image previews
     const previews: Record<string, string> = { ...imagePreviewUrls };
-    for (const f of fl) {
+    for (const f of accepted) {
       if (f.type?.startsWith('image/') && f.originFileObj && !previews[f.uid]) {
         previews[f.uid] = await fileToBase64(f.originFileObj);
       }
