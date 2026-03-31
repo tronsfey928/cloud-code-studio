@@ -1,23 +1,32 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import type { ChatMessage } from '@/types';
+import type { ChatMessage, DevServerData, WorkspaceInfo } from '@/types';
 import { MessageType } from '@/types';
 
 interface ChatState {
   messages: ChatMessage[];
   isTyping: boolean;
   sessionId: string | null;
+  planMode: boolean;
+  devServer: DevServerData | null;
+  workspaceInfo: WorkspaceInfo | null;
   addMessage: (message: Omit<ChatMessage, 'id' | 'timestamp'>) => ChatMessage;
   updateStreamingMessage: (id: string, content: string, done?: boolean) => void;
   setTyping: (typing: boolean) => void;
   setSessionId: (id: string) => void;
   clearMessages: () => void;
+  setPlanMode: (enabled: boolean) => void;
+  setDevServer: (data: DevServerData | null) => void;
+  setWorkspaceInfo: (info: WorkspaceInfo) => void;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
   messages: [],
   isTyping: false,
   sessionId: null,
+  planMode: false,
+  devServer: null,
+  workspaceInfo: null,
 
   addMessage: (message) => {
     const newMessage: ChatMessage = {
@@ -51,4 +60,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   clearMessages: () => set({ messages: [] }),
+
+  setPlanMode: (enabled) => set({ planMode: enabled }),
+
+  setDevServer: (data) => set({ devServer: data }),
+
+  setWorkspaceInfo: (info) => set({ workspaceInfo: info }),
 }));

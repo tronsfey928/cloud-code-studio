@@ -1,4 +1,5 @@
 import { io, Socket } from 'socket.io-client';
+import type { FileAttachment } from '@/types';
 
 type EventCallback = (...args: unknown[]) => void;
 
@@ -49,12 +50,30 @@ class WebSocketService {
     this.socket?.emit('join_session', { sessionId });
   }
 
-  sendChatMessage(sessionId: string, content: string, attachments?: unknown[]): void {
-    this.socket?.emit('chat_message', { sessionId, content, attachments });
+  sendChatMessage(
+    sessionId: string,
+    content: string,
+    attachments?: FileAttachment[],
+    planMode?: boolean
+  ): void {
+    this.socket?.emit('chat_message', { sessionId, content, attachments, planMode });
   }
 
   sendCodeExecution(sessionId: string, code: string, language: string): void {
     this.socket?.emit('code_execution', { sessionId, code, language });
+  }
+
+  confirmPlan(sessionId: string, planId: string, confirmed: boolean): void {
+    this.socket?.emit('plan_confirm', { sessionId, planId, confirmed });
+  }
+
+  startDevServer(
+    sessionId: string,
+    workspaceId: string,
+    command: string,
+    port: number
+  ): void {
+    this.socket?.emit('start_dev_server', { sessionId, workspaceId, command, port });
   }
 
   on(event: string, callback: EventCallback): void {

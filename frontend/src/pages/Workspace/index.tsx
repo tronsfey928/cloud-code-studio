@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Layout, Button, Breadcrumb, Badge, Spin, Tooltip, message } from 'antd';
+import { Layout, Button, Breadcrumb, Badge, Spin, Tooltip, message, Tag } from 'antd';
 import {
   ArrowLeftOutlined,
   PlayCircleOutlined,
@@ -8,6 +8,8 @@ import {
   HomeOutlined,
   CodeOutlined,
   SettingOutlined,
+  GlobalOutlined,
+  CloseOutlined,
 } from '@ant-design/icons';
 import Chat from '@/components/Chat';
 import FileExplorer from '@/components/FileExplorer';
@@ -25,7 +27,7 @@ const Workspace: React.FC = () => {
   const navigate = useNavigate();
   const { workspaces, fetchWorkspaces, currentWorkspace, setCurrentWorkspace, startWorkspace, stopWorkspace } =
     useWorkspaceStore();
-  const { setSessionId, sessionId } = useChatStore();
+  const { setSessionId, sessionId, devServer, setDevServer, workspaceInfo } = useChatStore();
   const [wsLoading, setWsLoading] = React.useState(false);
   const [settingsOpen, setSettingsOpen] = React.useState(false);
 
@@ -127,6 +129,11 @@ const Workspace: React.FC = () => {
               },
             ]}
           />
+          {workspaceInfo && (
+            <Tag color="blue" className="text-xs ml-2">
+              {workspaceInfo.branch} · {workspaceInfo.fileCount} files
+            </Tag>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
@@ -201,15 +208,46 @@ const Workspace: React.FC = () => {
               </ErrorBoundary>
             </div>
 
-            {/* File explorer sider */}
+            {/* Right panel: File Explorer + Dev Server Preview */}
             <Sider
               width={480}
               theme="light"
-              className="border-l border-gray-200 overflow-hidden"
+              className="border-l border-gray-200 overflow-hidden flex flex-col"
             >
-              <ErrorBoundary>
-                <FileExplorer workspaceId={id} />
-              </ErrorBoundary>
+              {/* Dev server iframe preview */}
+              {devServer && devServer.status === 'running' && (
+                <div className="border-b border-gray-200 flex flex-col" style={{ height: '40%' }}>
+                  <div className="flex items-center justify-between px-3 py-2 bg-green-50 border-b border-green-200 shrink-0">
+                    <div className="flex items-center gap-2">
+                      <GlobalOutlined className="text-green-600" />
+                      <span className="text-xs font-semibold text-green-800">Live Preview</span>
+                      <Tag color="green" className="text-xs">
+                        :{devServer.port}
+                      </Tag>
+                    </div>
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<CloseOutlined />}
+                      onClick={() => setDevServer(null)}
+                      className="text-gray-400 hover:text-red-500"
+                    />
+                  </div>
+                  <iframe
+                    src={devServer.url}
+                    title="Dev Server Preview"
+                    className="flex-1 w-full border-0"
+                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                  />
+                </div>
+              )}
+
+              {/* File explorer fills remaining space */}
+              <div className={devServer?.status === 'running' ? 'flex-1 overflow-hidden' : 'h-full overflow-hidden'}>
+                <ErrorBoundary>
+                  <FileExplorer workspaceId={id} />
+                </ErrorBoundary>
+              </div>
             </Sider>
           </>
         )}
