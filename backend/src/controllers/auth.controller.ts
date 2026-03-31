@@ -6,6 +6,7 @@ import { config } from '../config';
 import { logger } from '../utils/logger';
 import { AuthenticatedRequest } from '../types';
 import { createError } from '../middleware/errorHandler';
+import { isValidEmail, isValidPassword, isValidUsername } from '../utils/validation';
 
 export async function register(
   req: Request,
@@ -23,8 +24,21 @@ export async function register(
       return next(createError('username, email, and password are required', 400));
     }
 
-    if (password.length < 8) {
-      return next(createError('Password must be at least 8 characters', 400));
+    if (!isValidUsername(username)) {
+      return next(createError('Username must be 2–50 characters', 400));
+    }
+
+    if (!isValidEmail(email)) {
+      return next(createError('Invalid email format', 400));
+    }
+
+    if (!isValidPassword(password)) {
+      return next(
+        createError(
+          'Password must be 8–128 characters and include uppercase, lowercase, and a digit',
+          400
+        )
+      );
     }
 
     const existing = await User.findOne({
@@ -117,6 +131,15 @@ export async function changePassword(
 
     if (newPassword.length < 8) {
       return next(createError('New password must be at least 8 characters', 400));
+    }
+
+    if (!isValidPassword(newPassword)) {
+      return next(
+        createError(
+          'New password must be 8–128 characters and include uppercase, lowercase, and a digit',
+          400
+        )
+      );
     }
 
     const user = await User.findByPk(req.user?.userId);

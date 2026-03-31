@@ -17,7 +17,7 @@ export class GitService {
     const sanitizedBranch = this.sanitizeBranchName(branch);
     const sanitizedTarget = path.resolve(targetDir);
 
-    const command = `git clone --branch ${sanitizedBranch} --single-branch --depth 1 ${sanitizedUrl} ${sanitizedTarget}`;
+    const command = `git clone --branch '${sanitizedBranch}' --single-branch --depth 1 '${sanitizedUrl}' '${sanitizedTarget}'`;
 
     try {
       const { stdout, stderr } = await execAsync(command, {
@@ -25,7 +25,7 @@ export class GitService {
         env: {
           ...process.env,
           GIT_TERMINAL_PROMPT: '0',
-          GIT_SSH_COMMAND: 'ssh -o StrictHostKeyChecking=no',
+          GIT_SSH_COMMAND: 'ssh -o StrictHostKeyChecking=accept-new',
         },
       });
       logger.info('Repository cloned', { stdout, stderr });
@@ -41,7 +41,7 @@ export class GitService {
 
     try {
       const { stdout } = await execAsync(
-        `git ls-remote --heads ${sanitizedUrl}`,
+        `git ls-remote --heads '${sanitizedUrl}'`,
         {
           timeout: 30_000,
           env: {
@@ -69,8 +69,8 @@ export class GitService {
     const sanitizedDir = path.resolve(repoDir);
 
     try {
-      await execAsync(`git -C ${sanitizedDir} pull origin ${sanitizedBranch}`, {
-        timeout: 60_000,
+      await execAsync(`git -C '${sanitizedDir}' pull origin '${sanitizedBranch}'`, {
+        timeout: 120_000,
       });
     } catch (error) {
       logger.error('Git pull failed', { repoDir, branch, error });

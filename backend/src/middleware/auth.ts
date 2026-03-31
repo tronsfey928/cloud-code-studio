@@ -1,5 +1,5 @@
 import { Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import jwt, { TokenExpiredError } from 'jsonwebtoken';
 import { config } from '../config';
 import { AuthenticatedRequest, JwtPayload } from '../types';
 import { logger } from '../utils/logger';
@@ -23,7 +23,12 @@ export function authenticate(
     req.user = decoded;
     next();
   } catch (error) {
-    logger.warn('Invalid JWT token', { error });
-    res.status(401).json({ success: false, message: 'Invalid or expired token' });
+    if (error instanceof TokenExpiredError) {
+      logger.warn('Expired JWT token', { error });
+      res.status(401).json({ success: false, message: 'Token expired' });
+    } else {
+      logger.warn('Invalid JWT token', { error });
+      res.status(401).json({ success: false, message: 'Invalid token' });
+    }
   }
 }

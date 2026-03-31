@@ -8,6 +8,7 @@ import { ChatSession } from '../models/ChatSession';
 import { ChatMessage } from '../models/ChatMessage';
 import { Workspace } from '../models/Workspace';
 import { openCodeService } from '../services/opencodeService';
+import { isValidPort, MAX_MESSAGE_LENGTH, MAX_ATTACHMENT_SIZE } from '../utils/validation';
 
 interface AuthenticatedSocket extends Socket {
   user?: JwtPayload;
@@ -88,6 +89,28 @@ export function setupWebSocket(io: Server): void {
         planMode?: boolean;
       }) => {
         try {
+          // Validate message content
+          if (!content || typeof content !== 'string' || content.trim().length === 0) {
+            socket.emit('error', { message: 'Message content is required' });
+            return;
+          }
+          if (content.length > MAX_MESSAGE_LENGTH) {
+            socket.emit('error', { message: 'Message content exceeds maximum length' });
+            return;
+          }
+
+          // Validate attachment sizes
+          if (attachments && Array.isArray(attachments)) {
+            const totalSize = attachments.reduce(
+              (sum, a) => sum + (typeof a.data === 'string' ? a.data.length : 0),
+              0
+            );
+            if (totalSize > MAX_ATTACHMENT_SIZE) {
+              socket.emit('error', { message: 'Total attachment size exceeds limit' });
+              return;
+            }
+          }
+
           const session = await ChatSession.findOne({
             where: { id: sessionId, userId: socket.user!.userId },
           });
@@ -266,6 +289,11 @@ export function setupWebSocket(io: Server): void {
         port: number;
       }) => {
         try {
+          if (!isValidPort(port)) {
+            socket.emit('error', { message: 'Port must be between 1024 and 65535' });
+            return;
+          }
+
           const workspace = await Workspace.findOne({
             where: { id: workspaceId, userId: socket.user!.userId },
           });

@@ -7,6 +7,11 @@ import { AuthenticatedRequest } from '../types';
 import { createError } from '../middleware/errorHandler';
 import { config } from '../config';
 import { logger } from '../utils/logger';
+import {
+  isValidWorkspaceName,
+  isValidGitUrl,
+  isValidBranch,
+} from '../utils/validation';
 
 export async function createWorkspace(
   req: AuthenticatedRequest,
@@ -22,6 +27,18 @@ export async function createWorkspace(
 
     if (!name || !repositoryUrl) {
       return next(createError('name and repositoryUrl are required', 400));
+    }
+
+    if (!isValidWorkspaceName(name)) {
+      return next(createError('Workspace name must be 1–100 characters', 400));
+    }
+
+    if (!isValidGitUrl(repositoryUrl)) {
+      return next(createError('Invalid repository URL format', 400));
+    }
+
+    if (branch && !isValidBranch(branch)) {
+      return next(createError('Invalid branch name', 400));
     }
 
     const userId = req.user!.userId;

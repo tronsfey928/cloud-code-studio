@@ -389,8 +389,9 @@ export class OpenCodeService {
   }
 
   private escapeShellArg(value: string): string {
-    // Remove shell-dangerous metacharacters; callers wrap in single quotes
-    return value.replace(/[;&|`$(){}[\]\\'"!]/g, '');
+    // Proper single-quote escaping: wrap in single quotes and escape any
+    // embedded single quotes using the '\'' idiom.
+    return value.replace(/'/g, "'\\''");
   }
 
   private sleep(ms: number): Promise<void> {
