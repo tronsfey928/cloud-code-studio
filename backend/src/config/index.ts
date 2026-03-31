@@ -19,4 +19,10 @@ export const config = {
   maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760', 10),
   containerTimeout: parseInt(process.env.CONTAINER_TIMEOUT || '3600000', 10),
   sandboxImage: process.env.SANDBOX_IMAGE || 'ubuntu:22.04',
+  opencode: {
+    llmProvider: process.env.OPENCODE_LLM_PROVIDER || 'anthropic',
+    llmModel: process.env.OPENCODE_LLM_MODEL || '',
+    llmApiKey: process.env.OPENCODE_LLM_API_KEY || '',
+    llmBaseUrl: process.env.OPENCODE_LLM_BASE_URL || '',
+  },
 };

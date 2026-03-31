@@ -3,6 +3,10 @@ export enum MessageType {
   CODE_EXECUTION = 'code_execution',
   FILE_OPERATION = 'file_operation',
   SYSTEM_STATUS = 'system_status',
+  TOOL_CALL = 'tool_call',
+  CODE_CHANGE = 'code_change',
+  PLAN = 'plan',
+  DEV_SERVER = 'dev_server',
   ERROR = 'error',
 }
 
@@ -32,12 +36,22 @@ export interface ChatMessage {
   isStreaming?: boolean;
   isUser?: boolean;
   attachments?: FileAttachment[];
+  /** For TOOL_CALL messages */
+  toolCall?: ToolCallData;
+  /** For CODE_CHANGE messages */
+  codeChange?: CodeChangeData;
+  /** For PLAN messages */
+  plan?: PlanData;
+  /** For DEV_SERVER messages */
+  devServer?: DevServerData;
 }
 
 export interface FileAttachment {
   path: string;
   name: string;
   mimeType: string;
+  /** Base64-encoded data for image preview */
+  data?: string;
 }
 
 export interface FileTreeNode {
@@ -95,4 +109,52 @@ export interface RegisterPayload {
 export interface AuthResponse {
   token: string;
   user: User;
+}
+
+// ─── Structured event data ───────────────────────────────────────
+
+export interface ToolCallData {
+  id: string;
+  toolName: string;
+  input: string;
+  output?: string;
+  status: 'running' | 'completed' | 'error';
+  timestamp: number;
+}
+
+export interface CodeChangeData {
+  id: string;
+  filePath: string;
+  changeType: 'created' | 'modified' | 'deleted';
+  diff?: string;
+  timestamp: number;
+}
+
+export interface PlanData {
+  id: string;
+  steps: PlanStep[];
+  status: 'pending' | 'confirmed' | 'rejected';
+  timestamp: number;
+}
+
+export interface PlanStep {
+  index: number;
+  description: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'skipped';
+}
+
+export interface DevServerData {
+  url: string;
+  port: number;
+  status: 'starting' | 'running' | 'stopped' | 'error';
+  timestamp: number;
+}
+
+export interface WorkspaceInfo {
+  workspaceId: string;
+  branch: string;
+  fileCount: number;
+  recentFiles: string[];
+  gitStatus: string;
+  timestamp: number;
 }

@@ -14,7 +14,7 @@ interface ChatProps {
 
 const Chat: React.FC<ChatProps> = ({ sessionId }) => {
   const { messages, isTyping } = useChatStore();
-  const { sendMessage, isConnected } = useWebSocket(sessionId);
+  const { sendMessage, confirmPlan, isConnected } = useWebSocket(sessionId);
 
   const handleSend = (content: string, attachments?: FileAttachment[]) => {
     sendMessage(content, attachments);
@@ -51,7 +51,7 @@ const Chat: React.FC<ChatProps> = ({ sessionId }) => {
 
       {/* Message list */}
       <div className="flex-1 overflow-hidden">
-        <MessageList messages={messages} />
+        <MessageList messages={messages} onConfirmPlan={confirmPlan} />
       </div>
 
       {/* Typing indicator */}

@@ -1,6 +1,7 @@
 import { Response, NextFunction } from 'express';
 import { Workspace } from '../models/Workspace';
 import { containerManager } from '../services/containerService';
+import { openCodeService } from '../services/opencodeService';
 import { startContainer, stopContainer } from './container.controller';
 import { AuthenticatedRequest } from '../types';
 import { createError } from '../middleware/errorHandler';
@@ -43,7 +44,7 @@ export async function createWorkspace(
         : undefined,
     });
 
-    // Start container asynchronously
+    // Start container and clone repo asynchronously
     setImmediate(async () => {
       try {
         const containerId = await containerManager.createAndStart(
@@ -55,6 +56,18 @@ export async function createWorkspace(
             memory: workspace.config.resources.memory,
           }
         );
+
+        // Clone the repository inside the container
+        try {
+          await openCodeService.cloneRepository(containerId, repositoryUrl, branch);
+          logger.info('Repository cloned in workspace container', { workspaceId: workspace.id });
+        } catch (cloneErr) {
+          logger.warn('Git clone failed, container still running', {
+            workspaceId: workspace.id,
+            error: cloneErr,
+          });
+        }
+
         await Workspace.update(
           { containerId, status: 'running' },
           { where: { id: workspace.id } }
