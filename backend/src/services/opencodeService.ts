@@ -1,8 +1,11 @@
 import { v4 as uuidv4 } from 'uuid';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import fs from 'fs/promises';
+import path from 'path';
 import { logger } from '../utils/logger';
 import { config } from '../config';
+import { OpenCodeConfig, McpServerConfig } from '../models/OpenCodeConfig';
 import {
   ResponseChunk,
   ToolCallEvent,
@@ -34,6 +37,11 @@ export class OpenCodeService {
     } = {}
   ): AsyncGenerator<OpenCodeStreamEvent, void, unknown> {
     logger.info('Starting OpenCode coding session', { workspacePath, planMode: options.planMode });
+
+    // Write workspace-specific opencode config (including MCP servers)
+    if (options.workspaceId) {
+      await this.writeOpenCodeConfig(workspacePath, options.workspaceId);
+    }
 
     const envVars = this.buildEnvVars(options.workspaceId);
     const planFlag = options.planMode ? '--plan' : '';
@@ -223,6 +231,51 @@ export class OpenCodeService {
       return true;
     } catch {
       return false;
+    }
+  }
+
+  /**
+   * Write an opencode configuration file to the workspace directory.
+   * This includes per-workspace LLM settings and MCP server definitions,
+   * allowing opencode to discover and use registered MCP servers.
+   */
+  async writeOpenCodeConfig(workspacePath: string, workspaceId: string): Promise<void> {
+    try {
+      const wsConfig = await OpenCodeConfig.findOne({ where: { workspaceId } });
+      if (!wsConfig) return;
+
+      const opencodeConfig: Record<string, unknown> = {};
+
+      // LLM provider configuration (per-workspace overrides global)
+      const provider = wsConfig.llmProvider || config.opencode.llmProvider;
+      const model = wsConfig.llmModel || config.opencode.llmModel;
+      const apiKey = wsConfig.llmApiKey || config.opencode.llmApiKey;
+      const baseUrl = wsConfig.llmBaseUrl || config.opencode.llmBaseUrl;
+
+      if (provider) opencodeConfig.provider = provider;
+      if (model) opencodeConfig.model = model;
+      if (apiKey) opencodeConfig.apiKey = apiKey;
+      if (baseUrl) opencodeConfig.baseUrl = baseUrl;
+
+      // MCP servers
+      const enabledServers = (wsConfig.mcpServers || []).filter(
+        (s: McpServerConfig) => s.enabled && s.name && s.url
+      );
+
+      if (enabledServers.length > 0) {
+        const mcpServers: Record<string, { url: string }> = {};
+        for (const server of enabledServers) {
+          mcpServers[server.name] = { url: server.url };
+        }
+        opencodeConfig.mcpServers = mcpServers;
+      }
+
+      // Write to .opencode.json in the workspace root
+      const configPath = path.join(workspacePath, '.opencode.json');
+      await fs.writeFile(configPath, JSON.stringify(opencodeConfig, null, 2), 'utf8');
+      logger.info('OpenCode config written', { workspaceId, configPath, mcpCount: enabledServers.length });
+    } catch (error) {
+      logger.warn('Failed to write opencode config', { workspaceId, error });
     }
   }
 
