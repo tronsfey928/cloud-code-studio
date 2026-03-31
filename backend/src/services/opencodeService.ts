@@ -48,7 +48,7 @@ export class OpenCodeService {
     const messageB64 = Buffer.from(userMessage).toString('base64');
 
     const cmd =
-      `cd ${this.sanitizePath(workspacePath)} && export ${envVars.join(' ')} && ` +
+      `cd '${this.escapeShellArg(workspacePath)}' && export ${envVars.join(' ')} && ` +
       `echo "${messageB64}" | base64 -d | opencode run ${planFlag} --output json 2>&1 || true`;
 
     try {
@@ -98,7 +98,7 @@ export class OpenCodeService {
       const messageB64 = Buffer.from(userMessage).toString('base64');
       const envVars = this.buildEnvVars();
       const cmd =
-        `cd ${this.sanitizePath(workspacePath)} && export ${envVars.join(' ')} && ` +
+        `cd '${this.escapeShellArg(workspacePath)}' && export ${envVars.join(' ')} && ` +
         `echo "${messageB64}" | base64 -d | opencode run --output text 2>&1 || true`;
 
       const result = await execAsync(cmd, {
@@ -173,8 +173,9 @@ export class OpenCodeService {
   ): Promise<{ url: string; port: number }> {
     logger.info('Starting dev server', { workspacePath, command, port });
 
-    // Start the dev server in background
-    exec(`cd ${this.sanitizePath(workspacePath)} && nohup ${command} > /tmp/devserver.log 2>&1 &`, {
+    // Start the dev server in background, constrained to the workspace directory via cwd
+    exec(command, {
+      cwd: workspacePath,
       shell: '/bin/bash',
       env: { ...process.env },
     });
@@ -195,23 +196,23 @@ export class OpenCodeService {
     recentFiles: string[];
     gitStatus: string;
   }> {
-    const safePath = this.sanitizePath(workspacePath);
+    const escapedPath = this.escapeShellArg(workspacePath);
 
     const [branchResult, fileCountResult, recentResult, statusResult] = await Promise.all([
       execAsync(
-        `cd ${safePath} && git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown"`,
+        `cd '${escapedPath}' && git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown"`,
         { shell: '/bin/bash' }
       ),
       execAsync(
-        `cd ${safePath} && find . -type f -not -path "./.git/*" | wc -l 2>/dev/null || echo "0"`,
+        `cd '${escapedPath}' && find . -type f -not -path "./.git/*" | wc -l 2>/dev/null || echo "0"`,
         { shell: '/bin/bash' }
       ),
       execAsync(
-        `cd ${safePath} && find . -type f -not -path "./.git/*" -printf "%T@ %p\\n" 2>/dev/null | sort -rn | head -10 | awk '{print $2}' || echo ""`,
+        `cd '${escapedPath}' && find . -type f -not -path "./.git/*" -printf "%T@ %p\\n" 2>/dev/null | sort -rn | head -10 | awk '{print $2}' || echo ""`,
         { shell: '/bin/bash' }
       ),
       execAsync(
-        `cd ${safePath} && git status --short 2>/dev/null || echo ""`,
+        `cd '${escapedPath}' && git status --short 2>/dev/null || echo ""`,
         { shell: '/bin/bash' }
       ),
     ]);
@@ -387,8 +388,8 @@ export class OpenCodeService {
     }
   }
 
-  private sanitizePath(value: string): string {
-    // Remove shell-dangerous metacharacters, keep path chars
+  private escapeShellArg(value: string): string {
+    // Remove shell-dangerous metacharacters; callers wrap in single quotes
     return value.replace(/[;&|`$(){}[\]\\'"!]/g, '');
   }
 
