@@ -48,7 +48,7 @@ export class OpenCodeService {
     const messageB64 = Buffer.from(userMessage).toString('base64');
 
     const cmd =
-      `cd '${this.escapeShellArg(workspacePath)}' && export ${envVars.join(' ')} && ` +
+      `cd ${this.escapeShellArg(workspacePath)} && export ${envVars.join(' ')} && ` +
       `echo "${messageB64}" | base64 -d | opencode run ${planFlag} --output json 2>&1 || true`;
 
     try {
@@ -98,7 +98,7 @@ export class OpenCodeService {
       const messageB64 = Buffer.from(userMessage).toString('base64');
       const envVars = this.buildEnvVars();
       const cmd =
-        `cd '${this.escapeShellArg(workspacePath)}' && export ${envVars.join(' ')} && ` +
+        `cd ${this.escapeShellArg(workspacePath)} && export ${envVars.join(' ')} && ` +
         `echo "${messageB64}" | base64 -d | opencode run --output text 2>&1 || true`;
 
       const result = await execAsync(cmd, {
@@ -200,19 +200,19 @@ export class OpenCodeService {
 
     const [branchResult, fileCountResult, recentResult, statusResult] = await Promise.all([
       execAsync(
-        `cd '${escapedPath}' && git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown"`,
+        `cd ${escapedPath} && git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown"`,
         { shell: '/bin/bash' }
       ),
       execAsync(
-        `cd '${escapedPath}' && find . -type f -not -path "./.git/*" | wc -l 2>/dev/null || echo "0"`,
+        `cd ${escapedPath} && find . -type f -not -path "./.git/*" | wc -l 2>/dev/null || echo "0"`,
         { shell: '/bin/bash' }
       ),
       execAsync(
-        `cd '${escapedPath}' && find . -type f -not -path "./.git/*" -printf "%T@ %p\\n" 2>/dev/null | sort -rn | head -10 | awk '{print $2}' || echo ""`,
+        `cd ${escapedPath} && find . -type f -not -path "./.git/*" -printf "%T@ %p\\n" 2>/dev/null | sort -rn | head -10 | awk '{print $2}' || echo ""`,
         { shell: '/bin/bash' }
       ),
       execAsync(
-        `cd '${escapedPath}' && git status --short 2>/dev/null || echo ""`,
+        `cd ${escapedPath} && git status --short 2>/dev/null || echo ""`,
         { shell: '/bin/bash' }
       ),
     ]);
@@ -391,7 +391,7 @@ export class OpenCodeService {
   private escapeShellArg(value: string): string {
     // Proper single-quote escaping: wrap in single quotes and escape any
     // embedded single quotes using the '\'' idiom.
-    return value.replace(/'/g, "'\\''");
+    return "'" + value.replace(/'/g, "'\\''") + "'";
   }
 
   private sleep(ms: number): Promise<void> {

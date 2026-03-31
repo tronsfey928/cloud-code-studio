@@ -1,5 +1,5 @@
 import React, { useState, useRef, KeyboardEvent } from 'react';
-import { Button, Upload, Tooltip, Switch } from 'antd';
+import { Button, Upload, Tooltip, Switch, message } from 'antd';
 import {
   SendOutlined,
   PaperClipOutlined,
@@ -79,8 +79,7 @@ const MessageInput: React.FC<MessageInputProps> = ({ onSend, disabled }) => {
     // Filter out files exceeding the size limit
     const accepted = fl.filter((f) => !f.size || f.size <= MAX_FILE_SIZE);
     if (accepted.length < fl.length) {
-      // If we filtered some files, the user should know
-      console.warn('Some files exceeded the 5 MB limit and were removed.');
+      void message.warning('Some files exceeded the 5 MB limit and were removed.');
     }
     setFileList(accepted);
     // Generate image previews

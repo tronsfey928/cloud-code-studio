@@ -127,7 +127,8 @@ export async function sendMessage(
       }
     } catch (streamError) {
       logger.error('Stream error', { sessionId: session.id, streamError });
-      res.write(`data: ${JSON.stringify({ error: 'An error occurred while processing the response' })}\n\n`);
+      const errorMsg = streamError instanceof Error ? streamError.message : 'Unknown error';
+      res.write(`data: ${JSON.stringify({ error: `Stream processing failed: ${errorMsg}` })}\n\n`);
     }
 
     await ChatMessage.create({

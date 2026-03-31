@@ -17,7 +17,7 @@ export class GitService {
     const sanitizedBranch = this.sanitizeBranchName(branch);
     const sanitizedTarget = path.resolve(targetDir);
 
-    const command = `git clone --branch '${sanitizedBranch}' --single-branch --depth 1 '${sanitizedUrl}' '${sanitizedTarget}'`;
+    const command = `git clone --branch ${this.shellQuote(sanitizedBranch)} --single-branch --depth 1 ${this.shellQuote(sanitizedUrl)} ${this.shellQuote(sanitizedTarget)}`;
 
     try {
       const { stdout, stderr } = await execAsync(command, {
@@ -41,7 +41,7 @@ export class GitService {
 
     try {
       const { stdout } = await execAsync(
-        `git ls-remote --heads '${sanitizedUrl}'`,
+        `git ls-remote --heads ${this.shellQuote(sanitizedUrl)}`,
         {
           timeout: 30_000,
           env: {
@@ -69,7 +69,7 @@ export class GitService {
     const sanitizedDir = path.resolve(repoDir);
 
     try {
-      await execAsync(`git -C '${sanitizedDir}' pull origin '${sanitizedBranch}'`, {
+      await execAsync(`git -C ${this.shellQuote(sanitizedDir)} pull origin ${this.shellQuote(sanitizedBranch)}`, {
         timeout: 120_000,
       });
     } catch (error) {
@@ -93,6 +93,11 @@ export class GitService {
       throw new Error('Invalid branch name');
     }
     return branch;
+  }
+
+  /** Wrap a value in properly-escaped single quotes for shell usage. */
+  private shellQuote(value: string): string {
+    return "'" + value.replace(/'/g, "'\\''") + "'";
   }
 }
 
