@@ -15,8 +15,6 @@ import {
 } from 'antd';
 import {
   PlusOutlined,
-  PlayCircleOutlined,
-  PauseCircleOutlined,
   DeleteOutlined,
   EllipsisOutlined,
   CodeOutlined,
@@ -33,8 +31,7 @@ const { Title, Text } = Typography;
 
 const statusLabel: Record<Workspace['status'], string> = {
   creating: 'Creating',
-  running: 'Running',
-  stopped: 'Stopped',
+  ready: 'Ready',
   error: 'Error',
 };
 
@@ -47,14 +44,11 @@ const Dashboard: React.FC = () => {
     fetchWorkspaces,
     createWorkspace,
     deleteWorkspace,
-    startWorkspace,
-    stopWorkspace,
   } = useWorkspaceStore();
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [createForm] = Form.useForm<CreateWorkspacePayload>();
   const [creating, setCreating] = useState(false);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
     void fetchWorkspaces();
@@ -71,32 +65,6 @@ const Dashboard: React.FC = () => {
       void message.error('Failed to create workspace');
     } finally {
       setCreating(false);
-    }
-  };
-
-  const handleStart = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setActionLoading(id + ':start');
-    try {
-      await startWorkspace(id);
-      void message.success('Workspace started');
-    } catch {
-      void message.error('Failed to start workspace');
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const handleStop = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setActionLoading(id + ':stop');
-    try {
-      await stopWorkspace(id);
-      void message.success('Workspace stopped');
-    } catch {
-      void message.error('Failed to stop workspace');
-    } finally {
-      setActionLoading(null);
     }
   };
 
@@ -182,30 +150,6 @@ const Dashboard: React.FC = () => {
                 className="rounded-xl border border-gray-200 shadow-sm transition-shadow hover:shadow-md cursor-pointer"
                 onClick={() => navigate(`/workspace/${ws.id}`)}
                 actions={[
-                  ws.status === 'running' ? (
-                    <Tooltip title="Stop" key="stop">
-                      <Button
-                        type="text"
-                        icon={<PauseCircleOutlined />}
-                        loading={actionLoading === ws.id + ':stop'}
-                        onClick={(e) => void handleStop(ws.id, e)}
-                        className="text-orange-500 hover:text-orange-600"
-                        size="small"
-                      />
-                    </Tooltip>
-                  ) : (
-                    <Tooltip title="Start" key="start">
-                      <Button
-                        type="text"
-                        icon={<PlayCircleOutlined />}
-                        loading={actionLoading === ws.id + ':start'}
-                        onClick={(e) => void handleStart(ws.id, e)}
-                        className="text-green-500 hover:text-green-600"
-                        disabled={ws.status === 'creating'}
-                        size="small"
-                      />
-                    </Tooltip>
-                  ),
                   <span key="more" onClick={(e) => e.stopPropagation()}>
                   <Dropdown
                     trigger={['click']}

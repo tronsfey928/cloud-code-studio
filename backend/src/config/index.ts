@@ -17,8 +17,7 @@ export const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
   logLevel: process.env.LOG_LEVEL || 'info',
   maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760', 10),
-  containerTimeout: parseInt(process.env.CONTAINER_TIMEOUT || '3600000', 10),
-  sandboxImage: process.env.SANDBOX_IMAGE || 'ubuntu:22.04',
+  workspacesDir: process.env.WORKSPACES_DIR || '/data/workspaces',
   opencode: {
     llmProvider: process.env.OPENCODE_LLM_PROVIDER || 'anthropic',
     llmModel: process.env.OPENCODE_LLM_MODEL || '',

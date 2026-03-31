@@ -9,12 +9,11 @@ export function truncate(str: string, max = 80): string {
 }
 
 export function getWorkspaceStatusColor(
-  status: 'creating' | 'running' | 'stopped' | 'error',
+  status: 'creating' | 'ready' | 'error',
 ): string {
   const map: Record<string, string> = {
     creating: 'processing',
-    running: 'success',
-    stopped: 'default',
+    ready: 'success',
     error: 'error',
   };
   return map[status] ?? 'default';

@@ -7,16 +7,7 @@ import {
 } from 'sequelize';
 import { sequelize } from '../config/database';
 
-export type WorkspaceStatus = 'creating' | 'running' | 'stopped' | 'error';
-
-export interface WorkspaceConfig {
-  resources: {
-    cpu: string;
-    memory: string;
-    storage: string;
-  };
-  environment: Record<string, string>;
-}
+export type WorkspaceStatus = 'creating' | 'ready' | 'error';
 
 export class Workspace extends Model<
   InferAttributes<Workspace>,
@@ -27,9 +18,8 @@ export class Workspace extends Model<
   declare name: string;
   declare repositoryUrl: string;
   declare branch: CreationOptional<string>;
-  declare containerId: CreationOptional<string | null>;
+  declare workspacePath: CreationOptional<string | null>;
   declare status: CreationOptional<WorkspaceStatus>;
-  declare config: CreationOptional<WorkspaceConfig>;
   declare lastAccessedAt: CreationOptional<Date>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
@@ -58,20 +48,13 @@ Workspace.init(
       type: DataTypes.STRING(255),
       defaultValue: 'main',
     },
-    containerId: {
-      type: DataTypes.STRING(255),
+    workspacePath: {
+      type: DataTypes.STRING(1024),
       allowNull: true,
     },
     status: {
-      type: DataTypes.ENUM('creating', 'running', 'stopped', 'error'),
+      type: DataTypes.ENUM('creating', 'ready', 'error'),
       defaultValue: 'creating',
-    },
-    config: {
-      type: DataTypes.JSON,
-      defaultValue: {
-        resources: { cpu: '0.5', memory: '512m', storage: '1g' },
-        environment: {},
-      },
     },
     lastAccessedAt: {
       type: DataTypes.DATE,

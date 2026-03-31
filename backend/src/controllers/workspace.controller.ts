@@ -1,10 +1,11 @@
 import { Response, NextFunction } from 'express';
+import path from 'path';
+import fs from 'fs/promises';
 import { Workspace } from '../models/Workspace';
-import { containerManager } from '../services/containerService';
-import { openCodeService } from '../services/opencodeService';
-import { startContainer, stopContainer } from './container.controller';
+import { gitService } from '../services/gitService';
 import { AuthenticatedRequest } from '../types';
 import { createError } from '../middleware/errorHandler';
+import { config } from '../config';
 import { logger } from '../utils/logger';
 
 export async function createWorkspace(
@@ -13,11 +14,10 @@ export async function createWorkspace(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { name, repositoryUrl, branch = 'main', config: wsConfig } = req.body as {
+    const { name, repositoryUrl, branch = 'main' } = req.body as {
       name: string;
       repositoryUrl: string;
       branch?: string;
-      config?: { resources?: { cpu?: string; memory?: string; storage?: string }; environment?: Record<string, string> };
     };
 
     if (!name || !repositoryUrl) {
@@ -32,50 +32,24 @@ export async function createWorkspace(
       repositoryUrl,
       branch,
       status: 'creating',
-      config: wsConfig
-        ? {
-            resources: {
-              cpu: wsConfig.resources?.cpu ?? '0.5',
-              memory: wsConfig.resources?.memory ?? '512m',
-              storage: wsConfig.resources?.storage ?? '1g',
-            },
-            environment: wsConfig.environment ?? {},
-          }
-        : undefined,
     });
 
-    // Start container and clone repo asynchronously
+    const workspacePath = path.join(config.workspacesDir, workspace.id);
+
+    // Clone repository asynchronously
     setImmediate(async () => {
       try {
-        const containerId = await containerManager.createAndStart(
-          workspace.id,
-          repositoryUrl,
-          branch,
-          {
-            cpu: workspace.config.resources.cpu,
-            memory: workspace.config.resources.memory,
-          }
-        );
-
-        // Clone the repository inside the container
-        try {
-          await openCodeService.cloneRepository(containerId, repositoryUrl, branch);
-          logger.info('Repository cloned in workspace container', { workspaceId: workspace.id });
-        } catch (cloneErr) {
-          logger.warn('Git clone failed, container still running', {
-            workspaceId: workspace.id,
-            error: cloneErr,
-          });
-        }
+        await fs.mkdir(workspacePath, { recursive: true });
+        await gitService.clone(repositoryUrl, branch, workspacePath);
 
         await Workspace.update(
-          { containerId, status: 'running' },
+          { workspacePath, status: 'ready' },
           { where: { id: workspace.id } }
         );
-        logger.info('Workspace container started', { workspaceId: workspace.id, containerId });
+        logger.info('Workspace ready', { workspaceId: workspace.id, workspacePath });
       } catch (err) {
         await Workspace.update({ status: 'error' }, { where: { id: workspace.id } });
-        logger.error('Failed to start workspace container', { workspaceId: workspace.id, err });
+        logger.error('Failed to set up workspace', { workspaceId: workspace.id, err });
       }
     });
 
@@ -132,13 +106,14 @@ export async function deleteWorkspace(
     });
     if (!workspace) return next(createError('Workspace not found', 404));
 
-    if (workspace.containerId) {
+    // Clean up workspace directory
+    if (workspace.workspacePath) {
       try {
-        await containerManager.destroy(workspace.containerId);
+        await fs.rm(workspace.workspacePath, { recursive: true, force: true });
       } catch (err) {
-        logger.warn('Failed to destroy container during workspace deletion', {
+        logger.warn('Failed to remove workspace directory', {
           workspaceId: workspace.id,
-          containerId: workspace.containerId,
+          workspacePath: workspace.workspacePath,
           err,
         });
       }
@@ -149,22 +124,4 @@ export async function deleteWorkspace(
   } catch (error) {
     next(error);
   }
-}
-
-export async function startWorkspace(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
-  req.params.workspaceId = req.params.id;
-  return startContainer(req, res, next);
-}
-
-export async function stopWorkspace(
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-): Promise<void> {
-  req.params.workspaceId = req.params.id;
-  return stopContainer(req, res, next);
 }

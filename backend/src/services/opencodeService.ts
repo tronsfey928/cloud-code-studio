@@ -1,13 +1,19 @@
 import { v4 as uuidv4 } from 'uuid';
-import { containerManager } from './containerService';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import fs from 'fs/promises';
+import path from 'path';
 import { logger } from '../utils/logger';
 import { config } from '../config';
+import { OpenCodeConfig, McpServerConfig } from '../models/OpenCodeConfig';
 import {
   ResponseChunk,
   ToolCallEvent,
   CodeChangeEvent,
   PlanStep,
 } from '../types';
+
+const execAsync = promisify(exec);
 
 export interface OpenCodeStreamEvent {
   type: 'chunk' | 'tool_call' | 'code_change' | 'plan' | 'dev_server' | 'done';
@@ -16,13 +22,13 @@ export interface OpenCodeStreamEvent {
 
 export class OpenCodeService {
   /**
-   * Stream an OpenCode coding session. Executes opencode CLI inside the
-   * container and parses its JSON-line output so the caller can forward
-   * structured events (tool calls, code changes, plan steps, etc.) over
-   * WebSocket.
+   * Stream an OpenCode coding session. Executes opencode CLI directly on the
+   * host inside the workspace directory and parses its JSON-line output so the
+   * caller can forward structured events (tool calls, code changes, plan
+   * steps, etc.) over WebSocket.
    */
   async *streamCodingSession(
-    containerId: string,
+    workspacePath: string,
     userMessage: string,
     options: {
       planMode?: boolean;
@@ -30,23 +36,28 @@ export class OpenCodeService {
       workspaceId?: string;
     } = {}
   ): AsyncGenerator<OpenCodeStreamEvent, void, unknown> {
-    logger.info('Starting OpenCode coding session', { containerId, planMode: options.planMode });
+    logger.info('Starting OpenCode coding session', { workspacePath, planMode: options.planMode });
+
+    // Write workspace-specific opencode config (including MCP servers)
+    if (options.workspaceId) {
+      await this.writeOpenCodeConfig(workspacePath, options.workspaceId);
+    }
 
     const envVars = this.buildEnvVars(options.workspaceId);
     const planFlag = options.planMode ? '--plan' : '';
     const messageB64 = Buffer.from(userMessage).toString('base64');
 
-    // Build the opencode invocation command.
-    // We pipe the message via stdin using base64 to avoid shell injection.
-    const cmd = [
-      '/bin/bash',
-      '-c',
-      `cd /workspace && export ${envVars.join(' ')} && ` +
-        `echo "${messageB64}" | base64 -d | opencode run ${planFlag} --output json 2>&1 || true`,
-    ];
+    const cmd =
+      `cd '${this.escapeShellArg(workspacePath)}' && export ${envVars.join(' ')} && ` +
+      `echo "${messageB64}" | base64 -d | opencode run ${planFlag} --output json 2>&1 || true`;
 
     try {
-      const result = await containerManager.exec(containerId, cmd);
+      const result = await execAsync(cmd, {
+        shell: '/bin/bash',
+        timeout: 300_000,
+        env: { ...process.env },
+      });
+
       const lines = result.stdout.split('\n').filter(Boolean);
 
       for (const line of lines) {
@@ -58,8 +69,7 @@ export class OpenCodeService {
 
       yield { type: 'done', data: { timestamp: Date.now() } };
     } catch (error) {
-      logger.error('OpenCode session error', { containerId, error });
-      // Yield error as text so the user sees what happened
+      logger.error('OpenCode session error', { workspacePath, error });
       yield {
         type: 'chunk',
         data: {
@@ -76,30 +86,26 @@ export class OpenCodeService {
    * Echoes the user message back to prove the pipeline works end-to-end.
    */
   async *streamResponse(
-    containerId: string,
+    workspacePath: string,
     userMessage: string,
     _sessionContext?: string
   ): AsyncGenerator<ResponseChunk, void, unknown> {
-    logger.info('Streaming OpenCode response', { containerId });
+    logger.info('Streaming OpenCode response', { workspacePath });
 
-    // Try opencode first; fall back to echo if binary not found
-    const checkResult = await containerManager.exec(containerId, [
-      '/bin/bash',
-      '-c',
-      'which opencode 2>/dev/null && echo FOUND || echo NOTFOUND',
-    ]);
-
-    const hasOpenCode = checkResult.stdout.trim().endsWith('FOUND');
+    const hasOpenCode = await this.checkOpenCodeInstalled();
 
     if (hasOpenCode) {
       const messageB64 = Buffer.from(userMessage).toString('base64');
       const envVars = this.buildEnvVars();
-      const result = await containerManager.exec(containerId, [
-        '/bin/bash',
-        '-c',
-        `cd /workspace && export ${envVars.join(' ')} && ` +
-          `echo "${messageB64}" | base64 -d | opencode run --output text 2>&1 || true`,
-      ]);
+      const cmd =
+        `cd '${this.escapeShellArg(workspacePath)}' && export ${envVars.join(' ')} && ` +
+        `echo "${messageB64}" | base64 -d | opencode run --output text 2>&1 || true`;
+
+      const result = await execAsync(cmd, {
+        shell: '/bin/bash',
+        timeout: 300_000,
+        env: { ...process.env },
+      });
 
       const lines = result.stdout.split('\n').filter(Boolean);
       for (const line of lines) {
@@ -107,12 +113,11 @@ export class OpenCodeService {
         await this.sleep(30);
       }
     } else {
-      // Fallback: describe what would happen
       const response =
         `I received your message: "${userMessage}"\n\n` +
-        `OpenCode CLI is not installed in this container. ` +
-        `To enable AI-powered coding, install opencode in the sandbox image ` +
-        `and configure the LLM provider via workspace settings.\n`;
+        `OpenCode CLI is not installed in this environment. ` +
+        `To enable AI-powered coding, install opencode and configure the ` +
+        `LLM provider via workspace settings.\n`;
 
       const words = response.split(' ');
       let buffer = '';
@@ -131,43 +136,49 @@ export class OpenCodeService {
   }
 
   async executeCommand(
-    containerId: string,
+    workspacePath: string,
     command: string
   ): Promise<{ output: string; error: string; exitCode: number }> {
-    logger.info('Executing command in container', { containerId, command });
+    logger.info('Executing command in workspace', { workspacePath, command });
 
     try {
-      const result = await containerManager.exec(containerId, [
-        '/bin/bash',
-        '-c',
-        command,
-      ]);
+      const result = await execAsync(command, {
+        cwd: workspacePath,
+        shell: '/bin/bash',
+        timeout: 120_000,
+        env: { ...process.env },
+      });
 
       return {
         output: result.stdout,
         error: result.stderr,
-        exitCode: result.exitCode,
+        exitCode: 0,
       };
     } catch (error) {
-      logger.error('Command execution failed', { containerId, command, error });
-      throw error;
+      const execError = error as { stdout?: string; stderr?: string; code?: number };
+      logger.error('Command execution failed', { workspacePath, command, error });
+      return {
+        output: execError.stdout || '',
+        error: execError.stderr || (error as Error).message,
+        exitCode: execError.code || 1,
+      };
     }
   }
 
-  /** Start a dev server inside the container and return the forwarded URL. */
+  /** Start a dev server in the workspace directory and return the URL. */
   async startDevServer(
-    containerId: string,
+    workspacePath: string,
     command: string,
     port: number
   ): Promise<{ url: string; port: number }> {
-    logger.info('Starting dev server', { containerId, command, port });
+    logger.info('Starting dev server', { workspacePath, command, port });
 
-    // Start the dev server in background
-    await containerManager.exec(containerId, [
-      '/bin/bash',
-      '-c',
-      `cd /workspace && nohup ${command} > /tmp/devserver.log 2>&1 &`,
-    ]);
+    // Start the dev server in background, constrained to the workspace directory via cwd
+    exec(command, {
+      cwd: workspacePath,
+      shell: '/bin/bash',
+      env: { ...process.env },
+    });
 
     // Give it a moment to start
     await this.sleep(2000);
@@ -179,34 +190,31 @@ export class OpenCodeService {
   }
 
   /** Get the git status summary of the workspace */
-  async getWorkspaceInfo(containerId: string): Promise<{
+  async getWorkspaceInfo(workspacePath: string): Promise<{
     branch: string;
     fileCount: number;
     recentFiles: string[];
     gitStatus: string;
   }> {
-    const branchResult = await containerManager.exec(containerId, [
-      '/bin/bash',
-      '-c',
-      'cd /workspace && git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown"',
-    ]);
+    const escapedPath = this.escapeShellArg(workspacePath);
 
-    const fileCountResult = await containerManager.exec(containerId, [
-      '/bin/bash',
-      '-c',
-      'cd /workspace && find . -type f -not -path "./.git/*" | wc -l 2>/dev/null || echo "0"',
-    ]);
-
-    const recentResult = await containerManager.exec(containerId, [
-      '/bin/bash',
-      '-c',
-      'cd /workspace && find . -type f -not -path "./.git/*" -printf "%T@ %p\\n" 2>/dev/null | sort -rn | head -10 | awk "{print \\$2}" || echo ""',
-    ]);
-
-    const statusResult = await containerManager.exec(containerId, [
-      '/bin/bash',
-      '-c',
-      'cd /workspace && git status --short 2>/dev/null || echo ""',
+    const [branchResult, fileCountResult, recentResult, statusResult] = await Promise.all([
+      execAsync(
+        `cd '${escapedPath}' && git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown"`,
+        { shell: '/bin/bash' }
+      ),
+      execAsync(
+        `cd '${escapedPath}' && find . -type f -not -path "./.git/*" | wc -l 2>/dev/null || echo "0"`,
+        { shell: '/bin/bash' }
+      ),
+      execAsync(
+        `cd '${escapedPath}' && find . -type f -not -path "./.git/*" -printf "%T@ %p\\n" 2>/dev/null | sort -rn | head -10 | awk '{print $2}' || echo ""`,
+        { shell: '/bin/bash' }
+      ),
+      execAsync(
+        `cd '${escapedPath}' && git status --short 2>/dev/null || echo ""`,
+        { shell: '/bin/bash' }
+      ),
     ]);
 
     return {
@@ -217,36 +225,59 @@ export class OpenCodeService {
     };
   }
 
-  /** Clone the git repository inside a running container */
-  async cloneRepository(
-    containerId: string,
-    repositoryUrl: string,
-    branch: string
-  ): Promise<void> {
-    logger.info('Cloning repository in container', { containerId, repositoryUrl, branch });
-
-    // Install git if not present and clone
-    const cloneCmd = [
-      '/bin/bash',
-      '-c',
-      [
-        'apt-get update -qq && apt-get install -y -qq git > /dev/null 2>&1 || true',
-        `git clone --branch ${this.sanitize(branch)} --single-branch --depth 1 ${this.sanitize(repositoryUrl)} /workspace 2>&1 || ` +
-          `git clone --depth 1 ${this.sanitize(repositoryUrl)} /workspace 2>&1`,
-      ].join(' && '),
-    ];
-
-    const result = await containerManager.exec(containerId, cloneCmd);
-    if (result.exitCode !== 0 && !result.stdout.includes('already exists')) {
-      logger.error('Git clone failed in container', {
-        containerId,
-        stdout: result.stdout,
-        stderr: result.stderr,
-      });
-      throw new Error(`Git clone failed: ${result.stderr || result.stdout}`);
+  /** Check whether the opencode CLI binary is available */
+  async checkOpenCodeInstalled(): Promise<boolean> {
+    try {
+      await execAsync('which opencode', { shell: '/bin/bash' });
+      return true;
+    } catch {
+      return false;
     }
+  }
 
-    logger.info('Repository cloned in container', { containerId });
+  /**
+   * Write an opencode configuration file to the workspace directory.
+   * This includes per-workspace LLM settings and MCP server definitions,
+   * allowing opencode to discover and use registered MCP servers.
+   */
+  async writeOpenCodeConfig(workspacePath: string, workspaceId: string): Promise<void> {
+    try {
+      const wsConfig = await OpenCodeConfig.findOne({ where: { workspaceId } });
+      if (!wsConfig) return;
+
+      const opencodeConfig: Record<string, unknown> = {};
+
+      // LLM provider configuration (per-workspace overrides global)
+      const provider = wsConfig.llmProvider || config.opencode.llmProvider;
+      const model = wsConfig.llmModel || config.opencode.llmModel;
+      const apiKey = wsConfig.llmApiKey || config.opencode.llmApiKey;
+      const baseUrl = wsConfig.llmBaseUrl || config.opencode.llmBaseUrl;
+
+      if (provider) opencodeConfig.provider = provider;
+      if (model) opencodeConfig.model = model;
+      if (apiKey) opencodeConfig.apiKey = apiKey;
+      if (baseUrl) opencodeConfig.baseUrl = baseUrl;
+
+      // MCP servers
+      const enabledServers = (wsConfig.mcpServers || []).filter(
+        (s: McpServerConfig) => s.enabled && s.name && s.url
+      );
+
+      if (enabledServers.length > 0) {
+        const mcpServers: Record<string, { url: string }> = {};
+        for (const server of enabledServers) {
+          mcpServers[server.name] = { url: server.url };
+        }
+        opencodeConfig.mcpServers = mcpServers;
+      }
+
+      // Write to .opencode.json in the workspace root
+      const configPath = path.join(workspacePath, '.opencode.json');
+      await fs.writeFile(configPath, JSON.stringify(opencodeConfig, null, 2), 'utf8');
+      logger.info('OpenCode config written', { workspaceId, configPath, mcpCount: enabledServers.length });
+    } catch (error) {
+      logger.warn('Failed to write opencode config', { workspaceId, error });
+    }
   }
 
   private buildEnvVars(workspaceId?: string): string[] {
@@ -357,9 +388,8 @@ export class OpenCodeService {
     }
   }
 
-  private sanitize(value: string): string {
-    // Allow characters valid in git URLs and branch names (including /)
-    // Remove only shell-dangerous metacharacters
+  private escapeShellArg(value: string): string {
+    // Remove shell-dangerous metacharacters; callers wrap in single quotes
     return value.replace(/[;&|`$(){}[\]\\'"!]/g, '');
   }
 

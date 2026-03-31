@@ -10,7 +10,7 @@ async function resolveWorkspace(workspaceId: string, userId: string) {
     where: { id: workspaceId, userId },
   });
   if (!workspace) throw createError('Workspace not found', 404);
-  if (!workspace.containerId) throw createError('Workspace container is not running', 400);
+  if (!workspace.workspacePath) throw createError('Workspace is not ready', 400);
   return workspace;
 }
 
@@ -21,9 +21,9 @@ export async function getFileTree(
 ): Promise<void> {
   try {
     const workspace = await resolveWorkspace(req.params.workspaceId, req.user!.userId);
-    const dirPath = (req.query.path as string) || '/workspace';
+    const dirPath = (req.query.path as string) || '.';
     const depth = parseInt((req.query.depth as string) || '3', 10);
-    const tree = await fileService.getFileTree(workspace.containerId!, dirPath, depth);
+    const tree = await fileService.getFileTree(workspace.workspacePath!, dirPath, depth);
     res.json({ success: true, tree });
   } catch (error) {
     next(error);
@@ -39,7 +39,7 @@ export async function readFile(
     const workspace = await resolveWorkspace(req.params.workspaceId, req.user!.userId);
     const filePath = req.query.path as string;
     if (!filePath) return next(createError('path query parameter is required', 400));
-    const file = await fileService.readFile(workspace.containerId!, filePath);
+    const file = await fileService.readFile(workspace.workspacePath!, filePath);
     res.json({ success: true, file });
   } catch (error) {
     next(error);
@@ -57,7 +57,7 @@ export async function writeFile(
     if (!filePath || content === undefined) {
       return next(createError('path and content are required', 400));
     }
-    await fileService.writeFile(workspace.containerId!, filePath, content);
+    await fileService.writeFile(workspace.workspacePath!, filePath, content);
     res.json({ success: true, message: 'File written successfully' });
   } catch (error) {
     next(error);
@@ -79,7 +79,7 @@ export async function uploadFile(
     const result = await fileService.uploadFile(
       sessionId,
       workspace.id,
-      workspace.containerId!,
+      workspace.workspacePath!,
       req.file,
       targetPath
     );

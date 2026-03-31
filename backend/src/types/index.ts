@@ -12,19 +12,6 @@ export enum MessageType {
   ERROR = 'error',
 }
 
-export interface ContainerConfig {
-  id: string;
-  repositoryUrl: string;
-  branch: string;
-  userId: string;
-  resources: {
-    cpu: string;
-    memory: string;
-    storage: string;
-  };
-  timeout: number;
-}
-
 export interface BaseMessage {
   id: string;
   type: MessageType;
@@ -129,12 +116,4 @@ export interface JwtPayload {
 
 export interface AuthenticatedRequest extends Request {
   user?: JwtPayload;
-}
-
-export interface ContainerStatus {
-  id: string;
-  status: string;
-  running: boolean;
-  startedAt?: string;
-  finishedAt?: string;
 }
