@@ -358,7 +358,8 @@ export class OpenCodeService {
   }
 
   private sanitize(value: string): string {
-    // Remove shell-dangerous characters for safe command interpolation
+    // Allow characters valid in git URLs and branch names (including /)
+    // Remove only shell-dangerous metacharacters
     return value.replace(/[;&|`$(){}[\]\\'"!]/g, '');
   }
 

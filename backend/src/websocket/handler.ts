@@ -132,8 +132,10 @@ export function setupWebSocket(io: Server): void {
 
           // Extract base64 image data from attachments
           const imageData = attachments
-            ?.filter((a) => a.mimeType?.startsWith('image/') && a.data)
-            .map((a) => a.data as string);
+            ?.filter((a): a is FileAttachment & { data: string } =>
+              Boolean(a.mimeType?.startsWith('image/') && typeof a.data === 'string')
+            )
+            .map((a) => a.data);
 
           // Use the full coding session stream
           for await (const event of openCodeService.streamCodingSession(

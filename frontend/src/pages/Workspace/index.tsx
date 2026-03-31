@@ -237,7 +237,7 @@ const Workspace: React.FC = () => {
                     src={devServer.url}
                     title="Dev Server Preview"
                     className="flex-1 w-full border-0"
-                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                    sandbox="allow-scripts allow-forms allow-popups"
                   />
                 </div>
               )}
