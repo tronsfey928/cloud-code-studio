@@ -52,7 +52,7 @@ export async function updateConfig(
     });
     if (!workspace) return next(createError('Workspace not found', 404));
 
-    const allowedFields = ['llmProvider', 'llmModel', 'llmApiKey', 'llmBaseUrl', 'skills', 'mcpServers'] as const;
+    const allowedFields = ['codingProvider', 'llmProvider', 'llmModel', 'llmApiKey', 'llmBaseUrl', 'skills', 'mcpServers'] as const;
     const updates: Record<string, unknown> = {};
     for (const field of allowedFields) {
       if (field in req.body) {

@@ -12,6 +12,7 @@ import {
   Typography,
   message,
   Spin,
+  Radio,
 } from 'antd';
 import {
   PlusOutlined,
@@ -19,11 +20,17 @@ import {
   SettingOutlined,
   ApiOutlined,
   ThunderboltOutlined,
+  CodeOutlined,
 } from '@ant-design/icons';
 import api from '@/services/api';
 import type { OpenCodeConfig, McpServer } from '@/types';
 
 const { Title, Text } = Typography;
+
+const CODING_PROVIDERS = [
+  { value: 'opencode', label: 'OpenCode CLI' },
+  { value: 'claude_code', label: 'Claude Code' },
+];
 
 const LLM_PROVIDERS = [
   { value: 'openai', label: 'OpenAI' },
@@ -62,6 +69,7 @@ const OpenCodeSettings: React.FC<OpenCodeSettingsProps> = ({ workspaceId, open, 
         .get<OpenCodeConfig>(`/opencode/${workspaceId}/config`)
         .then(({ data: config }) => {
           form.setFieldsValue({
+            codingProvider: config.codingProvider ?? 'opencode',
             llmProvider: config.llmProvider,
             llmModel: config.llmModel ?? '',
             llmApiKey: config.llmApiKey ?? '',
@@ -97,11 +105,11 @@ const OpenCodeSettings: React.FC<OpenCodeSettingsProps> = ({ workspaceId, open, 
   const addMcpServer = () => {
     setMcpServers((prev) => [
       ...prev,
-      { name: '', url: '', enabled: true },
+      { name: '', url: '', enabled: true, transport: 'sse' },
     ]);
   };
 
-  const updateMcpServer = (index: number, field: keyof McpServer, value: string | boolean) => {
+  const updateMcpServer = (index: number, field: keyof McpServer, value: string | boolean | string[]) => {
     setMcpServers((prev) =>
       prev.map((s, i) => (i === index ? { ...s, [field]: value } : s)),
     );
@@ -137,6 +145,28 @@ const OpenCodeSettings: React.FC<OpenCodeSettingsProps> = ({ workspaceId, open, 
         </div>
       ) : (
         <Form form={form} layout="vertical" requiredMark={false}>
+          {/* Coding Provider Section */}
+          <div className="mb-6">
+            <Title level={5} className="flex items-center gap-2 !mb-3">
+              <CodeOutlined className="text-cyan-500" />
+              Coding Provider
+            </Title>
+            <Text type="secondary" className="block mb-3 text-xs">
+              Choose the AI coding tool to use in this workspace
+            </Text>
+            <Form.Item name="codingProvider" rules={[{ required: true }]}>
+              <Radio.Group optionType="button" buttonStyle="solid">
+                {CODING_PROVIDERS.map((p) => (
+                  <Radio.Button key={p.value} value={p.value}>
+                    {p.label}
+                  </Radio.Button>
+                ))}
+              </Radio.Group>
+            </Form.Item>
+          </div>
+
+          <Divider />
+
           {/* LLM Provider Section */}
           <div className="mb-6">
             <Title level={5} className="flex items-center gap-2 !mb-3">
@@ -242,12 +272,42 @@ const OpenCodeSettings: React.FC<OpenCodeSettingsProps> = ({ workspaceId, open, 
                         value={server.name}
                         onChange={(e) => updateMcpServer(index, 'name', e.target.value)}
                       />
-                      <Input
+                      <Select
                         size="small"
-                        placeholder="http://localhost:3001"
-                        value={server.url}
-                        onChange={(e) => updateMcpServer(index, 'url', e.target.value)}
+                        value={server.transport || 'sse'}
+                        onChange={(val) => updateMcpServer(index, 'transport', val)}
+                        options={[
+                          { value: 'sse', label: 'SSE / HTTP' },
+                          { value: 'stdio', label: 'stdio (command)' },
+                        ]}
+                        className="w-full"
                       />
+                      {(server.transport || 'sse') === 'sse' ? (
+                        <Input
+                          size="small"
+                          placeholder="http://localhost:3001"
+                          value={server.url}
+                          onChange={(e) => updateMcpServer(index, 'url', e.target.value)}
+                        />
+                      ) : (
+                        <>
+                          <Input
+                            size="small"
+                            placeholder="Command (e.g. npx, node)"
+                            value={server.command || ''}
+                            onChange={(e) => updateMcpServer(index, 'command', e.target.value)}
+                          />
+                          <Input
+                            size="small"
+                            placeholder="Arguments (comma-separated)"
+                            value={(server.args || []).join(', ')}
+                            onChange={(e) => {
+                              const args = e.target.value.split(',').map((a) => a.trim()).filter(Boolean);
+                              updateMcpServer(index, 'args', args as unknown as string);
+                            }}
+                          />
+                        </>
+                      )}
                     </Space>
                   </div>
                 ))}
