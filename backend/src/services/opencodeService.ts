@@ -299,14 +299,26 @@ export class OpenCodeService {
    * Run user-configured setup commands in the workspace directory before a
    * coding session starts. Each command runs sequentially with a 60-second
    * timeout. Failures are logged but do not block the coding session.
+   *
+   * Security note: setup commands are configured by authenticated workspace
+   * owners and have the same trust level as the code_execution WebSocket event.
    */
   async runSetupCommands(workspacePath: string, workspaceId: string): Promise<void> {
+    const MAX_COMMANDS = 20;
+    const MAX_CMD_LENGTH = 2048;
+
     try {
       const wsConfig = await OpenCodeConfig.findOne({ where: { workspaceId } });
       if (!wsConfig?.setupCommands || wsConfig.setupCommands.length === 0) return;
 
-      for (const cmd of wsConfig.setupCommands) {
+      const commands = wsConfig.setupCommands.slice(0, MAX_COMMANDS);
+
+      for (const cmd of commands) {
         if (!cmd || typeof cmd !== 'string' || cmd.trim().length === 0) continue;
+        if (cmd.length > MAX_CMD_LENGTH) {
+          logger.warn('Setup command exceeds max length, skipping', { workspaceId, length: cmd.length });
+          continue;
+        }
 
         logger.info('Running setup command', { workspaceId, command: cmd });
         try {

@@ -27,8 +27,7 @@ api.interceptors.response.use(
     // Unwrap backend envelope: { success: true, workspaces: [...] } → workspaces: [...]
     const data = response.data;
     if (data && typeof data === 'object' && 'success' in data) {
-      const { success, ...rest } = data;
-      void success; // consumed but unused after destructure
+      const { success: _success, ...rest } = data;
       // If there's exactly one key left, return its value directly
       const keys = Object.keys(rest);
       if (keys.length === 1) {

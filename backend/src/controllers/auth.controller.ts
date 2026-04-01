@@ -152,10 +152,6 @@ export async function changePassword(
       return next(createError('currentPassword and newPassword are required', 400));
     }
 
-    if (currentPassword === newPassword) {
-      return next(createError('New password must be different from the current password', 400));
-    }
-
     if (!isValidPassword(newPassword)) {
       return next(
         createError(
@@ -170,6 +166,10 @@ export async function changePassword(
 
     if (!(await user.comparePassword(currentPassword))) {
       return next(createError('Current password is incorrect', 401));
+    }
+
+    if (currentPassword === newPassword) {
+      return next(createError('New password must be different from the current password', 400));
     }
 
     user.passwordHash = newPassword;
