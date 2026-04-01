@@ -151,7 +151,7 @@ export class AuthService {
       email: user.email,
       username: user.username,
     };
-    return jwt.sign(payload, secret, { expiresIn: expiry });
+    return jwt.sign(payload, secret, { expiresIn: expiry as jwt.SignOptions['expiresIn'] });
   }
 
   private async issueRefreshToken(userId: string): Promise<string> {
