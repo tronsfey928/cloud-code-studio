@@ -24,9 +24,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     try {
       const { data } = await api.get<Workspace[]>('/workspaces');
       set({ workspaces: data, loading: false });
-    } catch (err) {
+    } catch {
       set({ error: 'Failed to fetch workspaces', loading: false });
-      throw err;
     }
   },
 
@@ -53,9 +52,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
         currentWorkspace:
           state.currentWorkspace?.id === id ? null : state.currentWorkspace,
       }));
-    } catch (err) {
+    } catch {
       set({ error: 'Failed to delete workspace' });
-      throw err;
     }
   },
 

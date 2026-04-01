@@ -20,7 +20,7 @@ interface ChatState {
   setWorkspaceInfo: (info: WorkspaceInfo) => void;
 }
 
-export const useChatStore = create<ChatState>((set, get) => ({
+export const useChatStore = create<ChatState>((set, _get) => ({
   messages: [],
   isTyping: false,
   sessionId: null,
@@ -42,9 +42,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   updateStreamingMessage: (id, content, done = false) => {
     set((state) => ({
       messages: state.messages.map((msg) =>
-        msg.id === id
-          ? { ...msg, content, isStreaming: !done }
-          : msg,
+        msg.id === id ? { ...msg, content, isStreaming: !done } : msg,
       ),
       isTyping: !done,
     }));
@@ -53,10 +51,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setTyping: (typing) => set({ isTyping: typing }),
 
   setSessionId: (id) => {
-    const prev = get().sessionId;
-    if (prev !== id) {
-      set({ sessionId: id, messages: [] });
-    }
+    set({ sessionId: id, messages: [] });
   },
 
   clearMessages: () => set({ messages: [] }),

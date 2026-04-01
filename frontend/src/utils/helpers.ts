@@ -12,11 +12,11 @@ export function getWorkspaceStatusColor(
   status: 'creating' | 'ready' | 'error',
 ): string {
   const map: Record<string, string> = {
-    creating: 'processing',
-    ready: 'success',
-    error: 'error',
+    creating: 'bg-warning-100 text-warning-700',
+    ready: 'bg-success-100 text-success-700',
+    error: 'bg-danger-100 text-danger-700',
   };
-  return map[status] ?? 'default';
+  return map[status] ?? 'bg-surface-100 text-surface-700';
 }
 
 export function isImageFile(mimeType: string): boolean {

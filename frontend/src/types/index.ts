@@ -36,13 +36,9 @@ export interface ChatMessage {
   isStreaming?: boolean;
   isUser?: boolean;
   attachments?: FileAttachment[];
-  /** For TOOL_CALL messages */
   toolCall?: ToolCallData;
-  /** For CODE_CHANGE messages */
   codeChange?: CodeChangeData;
-  /** For PLAN messages */
   plan?: PlanData;
-  /** For DEV_SERVER messages */
   devServer?: DevServerData;
 }
 
@@ -50,7 +46,6 @@ export interface FileAttachment {
   path: string;
   name: string;
   mimeType: string;
-  /** Base64-encoded data for image preview */
   data?: string;
 }
 
@@ -71,11 +66,8 @@ export interface McpServer {
   name: string;
   url: string;
   enabled: boolean;
-  /** Transport type: 'sse' for HTTP-based, 'stdio' for command-based */
   transport?: 'sse' | 'stdio';
-  /** Command to run for stdio transport */
   command?: string;
-  /** Arguments for the stdio command */
   args?: string[];
 }
 
@@ -89,7 +81,6 @@ export interface OpenCodeConfig {
   llmBaseUrl: string | null;
   skills: string[];
   mcpServers: McpServer[];
-  /** Shell commands to run before starting a coding session (environment init). */
   setupCommands: string[];
 }
 
@@ -120,8 +111,6 @@ export interface AuthResponse {
   refreshToken: string;
   user: User;
 }
-
-// ─── Structured event data ───────────────────────────────────────
 
 export interface ToolCallData {
   id: string;
