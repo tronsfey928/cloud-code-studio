@@ -17,7 +17,7 @@ export class OpenCodeConfig {
   @Column({ type: 'varchar', length: 36, unique: true, name: 'workspaceId' })
   workspaceId!: string;
 
-  @Column({ type: 'varchar', length: 50, default: 'opencode', name: 'codingProvider' })
+  @Column({ type: 'varchar', length: 50, default: 'claude_code', name: 'codingProvider' })
   codingProvider!: string;
 
   @Column({ type: 'varchar', length: 100, default: 'openai', name: 'llmProvider' })

@@ -1,6 +1,6 @@
 # Cloud Code Studio
 
-Cloud Code Studio 是一个基于 Web 的云端 AI 编程工作台，将 React 19 前端、NestJS 后端与 [OpenCode](https://github.com/opencode-ai/opencode) / [Claude Code](https://github.com/anthropics/claude-code) CLI 深度集成，提供浏览器内的 AI 辅助编程体验。本项目设计为与基础镜像打包后，由外部安全沙箱服务拉起运行，不包含容器编排逻辑。
+Cloud Code Studio 是一个基于 Web 的云端 AI 编程工作台，将 React 19 前端、NestJS 后端与 [Claude Code](https://github.com/anthropics/claude-code) / [Codex](https://github.com/openai/codex) / [GitHub Copilot CLI](https://docs.github.com/en/copilot/github-copilot-in-the-cli) / [OpenCode](https://github.com/opencode-ai/opencode) CLI 深度集成，提供浏览器内的 AI 辅助编程体验。默认使用 Claude Code 作为编程引擎。本项目设计为与基础镜像打包后，由外部安全沙箱服务拉起运行，不包含容器编排逻辑。
 
 ---
 
@@ -65,7 +65,7 @@ Cloud Code Studio 是一个基于 Web 的云端 AI 编程工作台，将 React 1
 1. 用户通过 React 前端注册/登录，创建 Workspace 并填写 Git 仓库地址
 2. 后端通过 `git clone` 将仓库克隆到本地 `/data/workspaces/{workspaceId}` 目录
 3. 用户在 Chat 界面（Socket.IO）发送编程指令
-4. 后端生成 `.opencode.json` 配置，调用 AI CLI（OpenCode 或 Claude Code）在工作区目录内执行
+4. 后端生成配置文件（`.claude.json` / `.codex.json` / `.opencode.json`），调用对应 AI CLI（Claude Code / Codex / GitHub Copilot CLI / OpenCode）在工作区目录内执行
 5. AI CLI 的 JSON-line 输出实时解析后通过 Socket.IO 推送到前端（流式文本、工具调用、代码变更、执行计划等）
 6. MCP 服务器为 AI CLI 提供扩展工具能力（代码搜索、文档检索等）
 
@@ -85,7 +85,7 @@ Cloud Code Studio 是一个基于 Web 的云端 AI 编程工作台，将 React 1
 | **缓存** | ioredis（可选）| Redis 缓存；未配置时自动降级为内存缓存 |
 | **认证** | JWT + bcryptjs + Refresh Token | Access/Refresh Token 双令牌轮换 |
 | **API 文档** | @nestjs/swagger | 自动生成 OpenAPI 规范，可在 `/api/docs` 访问 |
-| **AI 引擎** | OpenCode CLI / Claude Code CLI | 两种 AI 编程引擎，按工作区配置切换 |
+| **AI 引擎** | Claude Code / Codex / GitHub Copilot CLI / OpenCode CLI | 四种 AI 编程引擎，默认 Claude Code，按工作区配置切换 |
 | **Git 操作** | child_process (git CLI) | 仓库克隆、分支信息、状态查询 |
 
 ---
@@ -101,8 +101,10 @@ Cloud Code Studio 是一个基于 Web 的云端 AI 编程工作台，将 React 1
 | **MySQL** | 8.0 | 数据持久化（用户、工作区、聊天记录、配置） |
 | **Redis** | 7.x | 会话缓存（可选，未配置则使用内存缓存） |
 | **Git** | 2.x | 仓库克隆与工作区操作 |
-| **OpenCode CLI** | latest | AI 编程引擎（需在 `PATH` 中可用） |
-| **Claude Code CLI** | latest | 备选 AI 编程引擎（按需安装） |
+| **Claude Code CLI** | latest | 默认 AI 编程引擎（需在 `PATH` 中可用） |
+| **Codex CLI** | latest | OpenAI Codex 编程引擎（`npm install -g @openai/codex`）|
+| **GitHub Copilot CLI** | latest | GitHub Copilot CLI（`gh extension install github/gh-copilot`）|
+| **OpenCode CLI** | latest | 备选 AI 编程引擎（按需安装） |
 | **bash** | 4.x+ | Shell 环境（用于执行 AI 命令） |
 
 ---
@@ -162,7 +164,7 @@ MAX_FILE_SIZE=10485760        # 单文件上限，默认 10 MB
 # ── 工作区存储目录 ────────────────────────────────────────
 WORKSPACES_DIR=/data/workspaces
 
-# ── OpenCode/Claude Code 默认 LLM 配置 ───────────────────
+# ── AI CLI 默认 LLM 配置 ────────────────────────────────
 OPENCODE_LLM_PROVIDER=anthropic
 OPENCODE_LLM_MODEL=
 OPENCODE_LLM_API_KEY=
@@ -597,29 +599,31 @@ cd frontend && npx tsc --noEmit
 
 ## 界面截图
 
+> 📌 截图待补充。以下为各界面的文字说明。
+
 ### 工作区列表（Dashboard）
 
 > 展示用户的所有工作区卡片，支持创建（填写 Git 仓库地址）、删除操作，以及工作区状态标签（creating / ready / error）。
 
-![Dashboard 工作区列表](docs/screenshots/dashboard.png)
+<!-- 截图占位：部署运行后执行 npm run dev 访问 Dashboard 页面截图并保存至 docs/screenshots/dashboard.png -->
 
 ### AI 编程聊天界面
 
 > 主工作区页面，左侧为文件浏览器，右侧为 AI 聊天面板。实时展示 AI 流式响应、工具调用过程、代码文件变更详情。
 
-![AI 编程聊天界面](docs/screenshots/workspace-chat.png)
+<!-- 截图占位：部署运行后访问 Workspace 页面截图并保存至 docs/screenshots/workspace-chat.png -->
 
 ### AI 配置面板
 
-> 工作区设置弹窗，可配置 AI 引擎（OpenCode / Claude Code）、LLM 提供商与模型、API Key、MCP 服务器列表和预设命令。
+> 工作区设置弹窗，可配置 AI 引擎（Claude Code / Codex / GitHub Copilot CLI / OpenCode）、LLM 提供商与模型、API Key、MCP 服务器列表和预设命令。
 
-![AI 配置面板](docs/screenshots/opencode-settings.png)
+<!-- 截图占位：部署运行后打开设置面板截图并保存至 docs/screenshots/opencode-settings.png -->
 
 ### 文件浏览器
 
 > 内嵌文件树，支持展开/折叠目录、点击预览文件内容，与 AI 聊天联动展示最近变更文件。
 
-![文件浏览器](docs/screenshots/file-explorer.png)
+<!-- 截图占位：部署运行后展开文件树截图并保存至 docs/screenshots/file-explorer.png -->
 
 ---
 
