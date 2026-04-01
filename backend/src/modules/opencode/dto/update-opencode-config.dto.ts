@@ -3,7 +3,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { McpServerConfig } from '../../../common/interfaces';
 
 export class UpdateOpenCodeConfigDto {
-  @ApiPropertyOptional({ example: 'opencode' })
+  @ApiPropertyOptional({ example: 'claude_code', description: 'Supported: claude_code, codex, copilot_cli, opencode' })
   @IsOptional()
   @IsString()
   codingProvider?: string;

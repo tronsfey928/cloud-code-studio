@@ -4,6 +4,8 @@ import { ConfigModule } from '@nestjs/config';
 import { OpenCodeController } from './opencode.controller';
 import { OpenCodeService } from './opencode.service';
 import { ClaudeCodeService } from './claude-code.service';
+import { CodexService } from './codex.service';
+import { CopilotCliService } from './copilot-cli.service';
 import { CodingServiceFactory } from './coding-service.factory';
 import { OpenCodeConfigService } from './opencode-config.service';
 import { CacheService } from './cache.service';
@@ -19,6 +21,8 @@ import { Workspace } from '../workspace/entities/workspace.entity';
   providers: [
     OpenCodeService,
     ClaudeCodeService,
+    CodexService,
+    CopilotCliService,
     CodingServiceFactory,
     OpenCodeConfigService,
     CacheService,
@@ -26,6 +30,8 @@ import { Workspace } from '../workspace/entities/workspace.entity';
   exports: [
     OpenCodeService,
     ClaudeCodeService,
+    CodexService,
+    CopilotCliService,
     CodingServiceFactory,
     CacheService,
   ],

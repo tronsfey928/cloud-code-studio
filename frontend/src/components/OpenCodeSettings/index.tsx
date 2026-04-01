@@ -25,7 +25,7 @@ export default function OpenCodeSettings({ workspaceId, open, onOpenChange }: Op
   const fetchConfig = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await api.get<OpenCodeConfig>(`/opencode/config/${workspaceId}`);
+      const { data } = await api.get<OpenCodeConfig>(`/opencode/${workspaceId}/config`);
       setConfig(data);
     } catch {
       // Config may not exist yet
@@ -42,7 +42,7 @@ export default function OpenCodeSettings({ workspaceId, open, onOpenChange }: Op
     if (!config) return;
     setSaving(true);
     try {
-      await api.put(`/opencode/config/${workspaceId}`, {
+      await api.put(`/opencode/${workspaceId}/config`, {
         codingProvider: config.codingProvider,
         llmProvider: config.llmProvider,
         llmModel: config.llmModel,
@@ -96,8 +96,10 @@ export default function OpenCodeSettings({ workspaceId, open, onOpenChange }: Op
                 <Select value={config.codingProvider} onValueChange={(v) => setConfig({ ...config, codingProvider: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="opencode">OpenCode</SelectItem>
                     <SelectItem value="claude_code">Claude Code</SelectItem>
+                    <SelectItem value="codex">Codex (OpenAI)</SelectItem>
+                    <SelectItem value="copilot_cli">GitHub Copilot CLI</SelectItem>
+                    <SelectItem value="opencode">OpenCode</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
