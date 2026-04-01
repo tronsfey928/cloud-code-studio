@@ -32,6 +32,8 @@ export class OpenCodeConfig extends Model<
   declare llmBaseUrl: CreationOptional<string | null>;
   declare skills: CreationOptional<string[]>;
   declare mcpServers: CreationOptional<McpServerConfig[]>;
+  /** Shell commands to run before starting a coding session (environment init). */
+  declare setupCommands: CreationOptional<string[]>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
 }
@@ -75,6 +77,10 @@ OpenCodeConfig.init(
       defaultValue: [],
     },
     mcpServers: {
+      type: DataTypes.JSON,
+      defaultValue: [],
+    },
+    setupCommands: {
       type: DataTypes.JSON,
       defaultValue: [],
     },

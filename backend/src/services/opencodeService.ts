@@ -41,6 +41,7 @@ export class OpenCodeService {
     // Write workspace-specific opencode config (including MCP servers)
     if (options.workspaceId) {
       await this.writeOpenCodeConfig(workspacePath, options.workspaceId);
+      await this.runSetupCommands(workspacePath, options.workspaceId);
     }
 
     const envVars = this.buildEnvVars(options.workspaceId);
@@ -291,6 +292,49 @@ export class OpenCodeService {
       logger.info('OpenCode config written', { workspaceId, configPath, mcpCount: enabledServers.length });
     } catch (error) {
       logger.warn('Failed to write opencode config', { workspaceId, error });
+    }
+  }
+
+  /**
+   * Run user-configured setup commands in the workspace directory before a
+   * coding session starts. Each command runs sequentially with a 60-second
+   * timeout. Failures are logged but do not block the coding session.
+   *
+   * Security note: setup commands are configured by authenticated workspace
+   * owners and have the same trust level as the code_execution WebSocket event.
+   */
+  async runSetupCommands(workspacePath: string, workspaceId: string): Promise<void> {
+    const MAX_COMMANDS = 20;
+    const MAX_CMD_LENGTH = 2048;
+
+    try {
+      const wsConfig = await OpenCodeConfig.findOne({ where: { workspaceId } });
+      if (!wsConfig?.setupCommands || wsConfig.setupCommands.length === 0) return;
+
+      const commands = wsConfig.setupCommands.slice(0, MAX_COMMANDS);
+
+      for (const cmd of commands) {
+        if (!cmd || typeof cmd !== 'string' || cmd.trim().length === 0) continue;
+        if (cmd.length > MAX_CMD_LENGTH) {
+          logger.warn('Setup command exceeds max length, skipping', { workspaceId, length: cmd.length });
+          continue;
+        }
+
+        logger.info('Running setup command', { workspaceId, command: cmd });
+        try {
+          await execAsync(cmd, {
+            cwd: workspacePath,
+            shell: '/bin/bash',
+            timeout: 60_000,
+            env: { ...process.env },
+          });
+          logger.info('Setup command completed', { workspaceId, command: cmd });
+        } catch (error) {
+          logger.warn('Setup command failed (non-blocking)', { workspaceId, command: cmd, error });
+        }
+      }
+    } catch (error) {
+      logger.warn('Failed to run setup commands', { workspaceId, error });
     }
   }
 

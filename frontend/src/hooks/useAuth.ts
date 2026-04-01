@@ -26,8 +26,8 @@ export function useAuth() {
     [login, navigate],
   );
 
-  const handleLogout = useCallback(() => {
-    authService.logout();
+  const handleLogout = useCallback(async () => {
+    await authService.logout();
     storeLogout();
     navigate('/login');
   }, [storeLogout, navigate]);
