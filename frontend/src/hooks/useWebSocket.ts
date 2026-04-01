@@ -36,9 +36,6 @@ export function useWebSocket(sessionId: string | null) {
   } = useChatStore();
   const streamingIdRef = useRef<string | null>(null);
 
-  // Store the latest callbacks in refs so the effect's listeners never go stale.
-  // This avoids the memory-leak problem of registering/unregistering listeners
-  // every time a callback dependency changes.
   const handlersRef = useRef({
     addMessage,
     updateStreamingMessage,
@@ -57,7 +54,6 @@ export function useWebSocket(sessionId: string | null) {
   const planModeRef = useRef(planMode);
   planModeRef.current = planMode;
 
-  // Stable connection effect that only re-runs when token or sessionId change
   useEffect(() => {
     if (!token || !sessionId) return;
 
@@ -69,7 +65,8 @@ export function useWebSocket(sessionId: string | null) {
 
     const onChatResponse = (payload: ChatResponsePayload) => {
       if (!payload) return;
-      const { addMessage: add, updateStreamingMessage: update, setTyping: typing } = handlersRef.current;
+      const { addMessage: add, updateStreamingMessage: update, setTyping: typing } =
+        handlersRef.current;
 
       if (payload.delta !== undefined) {
         if (!streamingIdRef.current) {

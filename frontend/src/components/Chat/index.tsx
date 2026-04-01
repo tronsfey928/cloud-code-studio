@@ -1,66 +1,28 @@
-import React from 'react';
-import { Badge, Tooltip } from 'antd';
-import { WifiOutlined, DisconnectOutlined } from '@ant-design/icons';
-import MessageList from './MessageList';
-import MessageInput from './MessageInput';
-import TypingIndicator from './TypingIndicator';
 import { useChatStore } from '@/stores/chatStore';
 import { useWebSocket } from '@/hooks/useWebSocket';
-import type { FileAttachment } from '@/types';
+import { MessageList } from './MessageList';
+import { MessageInput } from './MessageInput';
+import { TypingIndicator } from './TypingIndicator';
+import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 interface ChatProps {
   sessionId: string | null;
+  className?: string;
 }
 
-const Chat: React.FC<ChatProps> = ({ sessionId }) => {
+export default function Chat({ sessionId, className }: ChatProps) {
   const { messages, isTyping } = useChatStore();
-  const { sendMessage, confirmPlan, isConnected } = useWebSocket(sessionId);
-
-  const handleSend = (content: string, attachments?: FileAttachment[]) => {
-    sendMessage(content, attachments);
-  };
+  const { sendMessage } = useWebSocket(sessionId);
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200 shrink-0">
-        <div className="flex items-center gap-2">
-          <span className="font-semibold text-gray-700">AI Assistant</span>
-          {sessionId && (
-            <span className="text-xs text-gray-400 font-mono truncate max-w-[160px]">
-              #{sessionId.slice(-8)}
-            </span>
-          )}
-        </div>
-        <Tooltip title={isConnected ? 'Connected' : 'Disconnected'}>
-          <Badge
-            status={isConnected ? 'success' : 'error'}
-            text={
-              <span className="text-xs text-gray-500 flex items-center gap-1">
-                {isConnected ? (
-                  <WifiOutlined className="text-green-500" />
-                ) : (
-                  <DisconnectOutlined className="text-red-400" />
-                )}
-                {isConnected ? 'Live' : 'Offline'}
-              </span>
-            }
-          />
-        </Tooltip>
+    <Card className={cn('flex h-full flex-col overflow-hidden', className)}>
+      <div className="flex items-center border-b border-surface-200 px-4 py-3 dark:border-surface-800">
+        <h2 className="text-sm font-semibold">Chat</h2>
       </div>
-
-      {/* Message list */}
-      <div className="flex-1 overflow-hidden">
-        <MessageList messages={messages} onConfirmPlan={confirmPlan} />
-      </div>
-
-      {/* Typing indicator */}
+      <MessageList messages={messages} className="flex-1" />
       {isTyping && <TypingIndicator />}
-
-      {/* Input */}
-      <MessageInput onSend={handleSend} disabled={!isConnected || !sessionId} />
-    </div>
+      <MessageInput onSend={sendMessage} disabled={!sessionId} />
+    </Card>
   );
-};
-
-export default Chat;
+}

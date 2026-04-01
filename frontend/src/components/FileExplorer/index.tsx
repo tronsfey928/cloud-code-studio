@@ -1,58 +1,67 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { Tree, Spin, Alert, Typography, Tooltip, message } from 'antd';
-import {
-  FolderOutlined,
-  FolderOpenOutlined,
-  FileOutlined,
-  ReloadOutlined,
-  CopyOutlined,
-} from '@ant-design/icons';
-import type { DataNode } from 'antd/es/tree';
+import { useState, useEffect, useCallback } from 'react';
+import { ChevronRight, ChevronDown, File, Folder, FolderOpen, RefreshCw } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
 import api from '@/services/api';
+import { cn } from '@/lib/utils';
 import type { FileTreeNode } from '@/types';
 
 interface FileExplorerProps {
   workspaceId: string;
+  onFileSelect?: (path: string) => void;
+  className?: string;
 }
 
-function buildTreeData(nodes: FileTreeNode[]): DataNode[] {
-  return nodes.map((node) => ({
-    key: node.path,
-    title: node.name,
-    isLeaf: node.type === 'file',
-    icon:
-      node.type === 'directory' ? (
-        ({ expanded }: { expanded?: boolean }) =>
-          expanded ? (
-            <FolderOpenOutlined className="text-yellow-500" />
-          ) : (
-            <FolderOutlined className="text-yellow-500" />
-          )
-      ) : (
-        <FileOutlined className="text-blue-400" />
-      ),
-    children: node.children ? buildTreeData(node.children) : undefined,
-  }));
+function TreeNode({ node, depth, onSelect }: { node: FileTreeNode; depth: number; onSelect?: (path: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const isDir = node.type === 'directory';
+
+  if (!isDir) {
+    return (
+      <button
+        onClick={() => onSelect?.(node.path)}
+        className="flex w-full items-center gap-1.5 rounded-sm px-2 py-1 text-left text-sm hover:bg-surface-100 active:bg-surface-200 dark:hover:bg-surface-800"
+        style={{ paddingLeft: `${depth * 16 + 8}px` }}
+      >
+        <File className="h-4 w-4 shrink-0 text-surface-400" />
+        <span className="truncate">{node.name}</span>
+      </button>
+    );
+  }
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger asChild>
+        <button
+          className="flex w-full items-center gap-1.5 rounded-sm px-2 py-1 text-left text-sm font-medium hover:bg-surface-100 active:bg-surface-200 dark:hover:bg-surface-800"
+          style={{ paddingLeft: `${depth * 16 + 8}px` }}
+        >
+          {open ? <ChevronDown className="h-3.5 w-3.5 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
+          {open ? <FolderOpen className="h-4 w-4 shrink-0 text-primary-500" /> : <Folder className="h-4 w-4 shrink-0 text-primary-500" />}
+          <span className="truncate">{node.name}</span>
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        {node.children?.map((child) => (
+          <TreeNode key={child.path} node={child} depth={depth + 1} onSelect={onSelect} />
+        ))}
+      </CollapsibleContent>
+    </Collapsible>
+  );
 }
 
-const FileExplorer: React.FC<FileExplorerProps> = ({ workspaceId }) => {
-  const [treeData, setTreeData] = useState<DataNode[]>([]);
+export default function FileExplorer({ workspaceId, onFileSelect, className }: FileExplorerProps) {
+  const [tree, setTree] = useState<FileTreeNode[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [fileContent, setFileContent] = useState<string | null>(null);
-  const [selectedPath, setSelectedPath] = useState<string | null>(null);
-  const [fileLoading, setFileLoading] = useState(false);
 
   const fetchTree = useCallback(async () => {
     setLoading(true);
-    setError(null);
     try {
-      const { data } = await api.get<FileTreeNode[]>(
-        `/files/${workspaceId}/tree`,
-      );
-      setTreeData(buildTreeData(data));
+      const { data } = await api.get<FileTreeNode[]>(`/files/tree/${workspaceId}`);
+      setTree(Array.isArray(data) ? data : []);
     } catch {
-      setError('Failed to load file tree.');
+      setTree([]);
     } finally {
       setLoading(false);
     }
@@ -62,114 +71,22 @@ const FileExplorer: React.FC<FileExplorerProps> = ({ workspaceId }) => {
     fetchTree();
   }, [fetchTree]);
 
-  const handleSelect = async (
-    _: React.Key[],
-    info: { node: DataNode },
-  ) => {
-    const node = info.node;
-    if (!node.isLeaf) return;
-    const filePath = String(node.key);
-    setSelectedPath(filePath);
-    setFileLoading(true);
-    setFileContent(null);
-    try {
-      const { data } = await api.get<{ content: string; path: string; encoding: string }>(
-        `/files/${workspaceId}/read`,
-        { params: { path: filePath } },
-      );
-      setFileContent(data.content);
-    } catch {
-      setFileContent('// Failed to load file content.');
-    } finally {
-      setFileLoading(false);
-    }
-  };
-
-  const handleCopy = () => {
-    if (fileContent) {
-      navigator.clipboard.writeText(fileContent).then(() => {
-        void message.success('Copied to clipboard');
-      });
-    }
-  };
-
   return (
-    <div className="flex flex-col h-full bg-white border-l border-gray-200">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50 shrink-0">
-        <span className="font-semibold text-gray-700 text-sm">File Explorer</span>
-        <Tooltip title="Refresh">
-          <ReloadOutlined
-            className="cursor-pointer text-gray-400 hover:text-blue-500 transition-colors"
-            onClick={fetchTree}
-          />
-        </Tooltip>
+    <div className={cn('flex h-full flex-col', className)}>
+      <div className="flex items-center justify-between border-b border-surface-200 px-3 py-2 dark:border-surface-800">
+        <span className="text-xs font-semibold uppercase tracking-wider text-surface-500">Files</span>
+        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={fetchTree} disabled={loading}>
+          <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
+        </Button>
       </div>
-
-      <div className="flex flex-1 overflow-hidden">
-        {/* Tree panel */}
-        <div className="w-56 shrink-0 border-r border-gray-100 overflow-y-auto py-2">
-          {loading && (
-            <div className="flex justify-center py-6">
-              <Spin size="small" />
-            </div>
-          )}
-          {error && (
-            <Alert type="error" message={error} className="m-2 text-xs" />
-          )}
-          {!loading && !error && treeData.length === 0 && (
-            <p className="text-xs text-gray-400 text-center mt-4">No files found</p>
-          )}
-          {!loading && treeData.length > 0 && (
-            <Tree
-              showIcon
-              treeData={treeData}
-              onSelect={handleSelect as (keys: React.Key[], info: { node: DataNode }) => void}
-              selectedKeys={selectedPath ? [selectedPath] : []}
-              className="text-sm"
-            />
-          )}
-        </div>
-
-        {/* File content panel */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {selectedPath ? (
-            <>
-              <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 bg-gray-50 shrink-0">
-                <Typography.Text
-                  className="text-xs font-mono text-gray-600 truncate max-w-[200px]"
-                  title={selectedPath}
-                >
-                  {selectedPath}
-                </Typography.Text>
-                <Tooltip title="Copy content">
-                  <CopyOutlined
-                    className="cursor-pointer text-gray-400 hover:text-blue-500"
-                    onClick={handleCopy}
-                  />
-                </Tooltip>
-              </div>
-              <div className="flex-1 overflow-auto">
-                {fileLoading ? (
-                  <div className="flex justify-center py-8">
-                    <Spin />
-                  </div>
-                ) : (
-                  <pre className="text-xs font-mono p-4 text-gray-800 whitespace-pre leading-relaxed m-0">
-                    {fileContent}
-                  </pre>
-                )}
-              </div>
-            </>
-          ) : (
-            <div className="flex items-center justify-center h-full text-gray-400 text-sm">
-              Select a file to view its contents
-            </div>
-          )}
-        </div>
-      </div>
+      <ScrollArea className="flex-1">
+        {tree.length === 0 && !loading && (
+          <p className="p-4 text-center text-xs text-surface-400">No files found</p>
+        )}
+        {tree.map((node) => (
+          <TreeNode key={node.path} node={node} depth={0} onSelect={onFileSelect} />
+        ))}
+      </ScrollArea>
     </div>
   );
-};
-
-export default FileExplorer;
+}

@@ -1,18 +1,16 @@
-import React from 'react';
 import ReactMarkdown from 'react-markdown';
-import type { ChatMessage } from '@/types';
+import { cn } from '@/lib/utils';
 
 interface StreamingMessageProps {
-  message: ChatMessage;
+  content: string;
+  className?: string;
 }
 
-const StreamingMessage: React.FC<StreamingMessageProps> = ({ message }) => (
-  <div className="prose prose-sm max-w-none text-gray-800">
-    <ReactMarkdown>{message.content}</ReactMarkdown>
-    {message.isStreaming && (
-      <span className="inline-block w-2 h-4 ml-0.5 bg-blue-500 animate-pulse align-middle rounded-sm" />
-    )}
-  </div>
-);
-
-export default StreamingMessage;
+export function StreamingMessage({ content, className }: StreamingMessageProps) {
+  return (
+    <div className={cn('prose prose-sm max-w-none dark:prose-invert', className)}>
+      <ReactMarkdown>{content}</ReactMarkdown>
+      <span className="inline-block h-4 w-1 animate-pulse bg-primary-500 align-text-bottom" />
+    </div>
+  );
+}

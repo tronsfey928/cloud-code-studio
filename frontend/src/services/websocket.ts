@@ -24,18 +24,6 @@ class WebSocketService {
       reconnectionDelay: 1000,
     });
 
-    this.socket.on('connect', () => {
-      console.info('[WS] Connected:', this.socket?.id);
-    });
-
-    this.socket.on('disconnect', (reason) => {
-      console.info('[WS] Disconnected:', reason);
-    });
-
-    this.socket.on('connect_error', (err) => {
-      console.error('[WS] Connection error:', err.message);
-    });
-
     return this.socket;
   }
 
@@ -54,7 +42,7 @@ class WebSocketService {
     sessionId: string,
     content: string,
     attachments?: FileAttachment[],
-    planMode?: boolean
+    planMode?: boolean,
   ): void {
     this.socket?.emit('chat_message', { sessionId, content, attachments, planMode });
   }
@@ -71,7 +59,7 @@ class WebSocketService {
     sessionId: string,
     workspaceId: string,
     command: string,
-    port: number
+    port: number,
   ): void {
     this.socket?.emit('start_dev_server', { sessionId, workspaceId, command, port });
   }

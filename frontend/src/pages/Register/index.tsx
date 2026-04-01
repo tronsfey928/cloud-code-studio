@@ -1,134 +1,72 @@
-import React from 'react';
-import { Form, Input, Button, Card, Typography, Divider, message } from 'antd';
-import { UserOutlined, LockOutlined, MailOutlined } from '@ant-design/icons';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import type { RegisterPayload } from '@/types';
+import { UserPlus } from 'lucide-react';
 
-const { Title, Text } = Typography;
-
-const Register: React.FC = () => {
-  const [form] = Form.useForm<RegisterPayload>();
+export default function RegisterPage() {
   const { register } = useAuth();
-  const [loading, setLoading] = React.useState(false);
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (values: RegisterPayload) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
     setLoading(true);
     try {
-      await register(values);
-    } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-        'Registration failed. Please try again.';
-      void message.error(msg);
+      await register({ username, email, password });
+    } catch {
+      setError('Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
-      <Card className="w-full max-w-md shadow-xl rounded-2xl border-0">
-        <div className="text-center mb-6">
-          <Title level={2} className="!mb-1 text-gray-800">
-            Create Account
-          </Title>
-          <Text type="secondary">Join CloudCode Studio today</Text>
-        </div>
-
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmit}
-          requiredMark={false}
-          size="large"
-        >
-          <Form.Item
-            name="username"
-            label="Username"
-            rules={[
-              { required: true, message: 'Please enter a username' },
-              { min: 3, message: 'Username must be at least 3 characters' },
-              { max: 30, message: 'Username must not exceed 30 characters' },
-            ]}
-          >
-            <Input prefix={<UserOutlined className="text-gray-300" />} placeholder="johndoe" />
-          </Form.Item>
-
-          <Form.Item
-            name="email"
-            label="Email"
-            rules={[
-              { required: true, message: 'Please enter your email' },
-              { type: 'email', message: 'Please enter a valid email' },
-            ]}
-          >
-            <Input
-              prefix={<MailOutlined className="text-gray-300" />}
-              placeholder="john@example.com"
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="password"
-            label="Password"
-            rules={[
-              { required: true, message: 'Please enter a password' },
-              { min: 8, message: 'Password must be at least 8 characters' },
-            ]}
-          >
-            <Input.Password
-              prefix={<LockOutlined className="text-gray-300" />}
-              placeholder="At least 8 characters"
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="confirmPassword"
-            label="Confirm Password"
-            dependencies={['password']}
-            rules={[
-              { required: true, message: 'Please confirm your password' },
-              ({ getFieldValue }) => ({
-                validator(_, value) {
-                  if (!value || getFieldValue('password') === value) {
-                    return Promise.resolve();
-                  }
-                  return Promise.reject(new Error('Passwords do not match'));
-                },
-              }),
-            ]}
-          >
-            <Input.Password
-              prefix={<LockOutlined className="text-gray-300" />}
-              placeholder="Repeat your password"
-            />
-          </Form.Item>
-
-          <Form.Item className="mb-2">
-            <Button
-              type="primary"
-              htmlType="submit"
-              loading={loading}
-              block
-              className="h-11 rounded-lg font-medium"
-            >
-              Create Account
+    <div className="flex min-h-screen items-center justify-center bg-surface-50 p-4 dark:bg-surface-950">
+      <Card className="w-full max-w-md animate-fade-in">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl">Create Account</CardTitle>
+          <CardDescription>Get started with CloudCode Studio</CardDescription>
+        </CardHeader>
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-4">
+            {error && (
+              <p className="rounded-md bg-danger-50 px-3 py-2 text-sm text-danger-700 dark:bg-danger-700/20 dark:text-danger-200">
+                {error}
+              </p>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="username">Username</Label>
+              <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="johndoe" required autoFocus />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
+            </div>
+          </CardContent>
+          <CardFooter className="flex-col gap-3">
+            <Button type="submit" className="w-full" disabled={loading}>
+              <UserPlus className="mr-2 h-4 w-4" />
+              {loading ? 'Creating account…' : 'Create Account'}
             </Button>
-          </Form.Item>
-        </Form>
-
-        <Divider className="my-4">
-          <Text type="secondary" className="text-sm">Already have an account?</Text>
-        </Divider>
-        <div className="text-center">
-          <Link to="/login">
-            <Button type="link">Sign in</Button>
-          </Link>
-        </div>
+            <p className="text-sm text-surface-500">
+              Already have an account?{' '}
+              <Link to="/login" className="text-primary-600 hover:underline">Sign in</Link>
+            </p>
+          </CardFooter>
+        </form>
       </Card>
     </div>
   );
-};
-
-export default Register;
+}

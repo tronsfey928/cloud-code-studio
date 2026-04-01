@@ -1,27 +1,26 @@
-import React, { Component } from 'react';
-import { Result, Button } from 'antd';
+import { Component, type ReactNode } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { AlertTriangle } from 'lucide-react';
 
-interface Props {
-  children: React.ReactNode;
+interface ErrorBoundaryProps {
+  children: ReactNode;
+  fallback?: ReactNode;
 }
 
-interface State {
+interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
 }
 
-class ErrorBoundary extends Component<Props, State> {
-  constructor(props: Props) {
+export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: null };
   }
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, info: React.ErrorInfo): void {
-    console.error('[ErrorBoundary]', error, info.componentStack);
   }
 
   handleReset = () => {
@@ -30,23 +29,24 @@ class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
+      if (this.props.fallback) return this.props.fallback;
       return (
-        <div className="flex items-center justify-center h-full p-8">
-          <Result
-            status="error"
-            title="Something went wrong"
-            subTitle={this.state.error?.message ?? 'An unexpected error occurred.'}
-            extra={
-              <Button type="primary" onClick={this.handleReset}>
-                Try Again
-              </Button>
-            }
-          />
+        <div className="flex min-h-screen items-center justify-center p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader className="items-center">
+              <AlertTriangle className="h-12 w-12 text-danger-500" />
+              <CardTitle className="text-center">Something went wrong</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 text-center">
+              <p className="text-sm text-surface-500">
+                {this.state.error?.message ?? 'An unexpected error occurred.'}
+              </p>
+              <Button onClick={this.handleReset}>Try Again</Button>
+            </CardContent>
+          </Card>
         </div>
       );
     }
     return this.props.children;
   }
 }
-
-export default ErrorBoundary;

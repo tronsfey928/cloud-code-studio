@@ -1,101 +1,67 @@
-import React from 'react';
-import { Form, Input, Button, Card, Typography, Divider, message } from 'antd';
-import { LockOutlined, MailOutlined } from '@ant-design/icons';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
-import type { LoginPayload } from '@/types';
+import { LogIn } from 'lucide-react';
 
-const { Title, Text } = Typography;
-
-const Login: React.FC = () => {
-  const [form] = Form.useForm<LoginPayload>();
+export default function LoginPage() {
   const { login } = useAuth();
-  const [loading, setLoading] = React.useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (values: LoginPayload) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
     setLoading(true);
     try {
-      await login(values);
-    } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-        'Login failed. Please check your credentials.';
-      void message.error(msg);
+      await login({ email, password });
+    } catch {
+      setError('Invalid email or password');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
-      <Card className="w-full max-w-md shadow-xl rounded-2xl border-0">
-        <div className="text-center mb-8">
-          <div className="text-5xl mb-3">⌨️</div>
-          <Title level={2} className="!mb-1 text-gray-800">
-            CloudCode Studio
-          </Title>
-          <Text type="secondary">Sign in to your workspace</Text>
-        </div>
-
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmit}
-          requiredMark={false}
-          size="large"
-          initialValues={{ email: '', password: '' }}
-        >
-          <Form.Item
-            name="email"
-            label="Email"
-            rules={[
-              { required: true, message: 'Please enter your email' },
-              { type: 'email', message: 'Please enter a valid email' },
-            ]}
-          >
-            <Input
-              prefix={<MailOutlined className="text-gray-300" />}
-              placeholder="you@example.com"
-              autoComplete="email"
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="password"
-            label="Password"
-            rules={[{ required: true, message: 'Please enter your password' }]}
-          >
-            <Input.Password
-              prefix={<LockOutlined className="text-gray-300" />}
-              placeholder="Your password"
-              autoComplete="current-password"
-            />
-          </Form.Item>
-
-          <Form.Item className="mb-2">
-            <Button
-              type="primary"
-              htmlType="submit"
-              loading={loading}
-              block
-              className="h-11 rounded-lg font-medium"
-            >
-              Sign In
+    <div className="flex min-h-screen items-center justify-center bg-surface-50 p-4 dark:bg-surface-950">
+      <Card className="w-full max-w-md animate-fade-in">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl">Welcome Back</CardTitle>
+          <CardDescription>Sign in to CloudCode Studio</CardDescription>
+        </CardHeader>
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-4">
+            {error && (
+              <p className="rounded-md bg-danger-50 px-3 py-2 text-sm text-danger-700 dark:bg-danger-700/20 dark:text-danger-200">
+                {error}
+              </p>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required autoFocus />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
+            </div>
+          </CardContent>
+          <CardFooter className="flex-col gap-3">
+            <Button type="submit" className="w-full" disabled={loading}>
+              <LogIn className="mr-2 h-4 w-4" />
+              {loading ? 'Signing in…' : 'Sign In'}
             </Button>
-          </Form.Item>
-        </Form>
-
-        <Divider className="my-4">
-          <Text type="secondary" className="text-sm">New to CloudCode Studio?</Text>
-        </Divider>
-        <div className="text-center">
-          <Link to="/register">
-            <Button type="link">Create an account</Button>
-          </Link>
-        </div>
+            <p className="text-sm text-surface-500">
+              Don&apos;t have an account?{' '}
+              <Link to="/register" className="text-primary-600 hover:underline">Register</Link>
+            </p>
+          </CardFooter>
+        </form>
       </Card>
     </div>
   );
-};
-
-export default Login;
+}

@@ -21,14 +21,13 @@ export const authService = {
     return data;
   },
 
-  /** Exchange a refresh token for a new access + refresh token pair. */
   async refresh(): Promise<{ token: string; refreshToken: string }> {
     const refreshToken = localStorage.getItem('refreshToken');
     if (!refreshToken) throw new Error('No refresh token available');
 
     const { data } = await api.post<{ token: string; refreshToken: string }>(
-      '/auth/refresh',
-      { refreshToken }
+      '/auth/refresh-token',
+      { refreshToken },
     );
     localStorage.setItem('token', data.token);
     localStorage.setItem('refreshToken', data.refreshToken);
@@ -40,7 +39,7 @@ export const authService = {
     try {
       await api.post('/auth/logout', { refreshToken });
     } catch {
-      // Best-effort server-side revocation; clear local state regardless
+      // Best-effort
     }
     localStorage.removeItem('token');
     localStorage.removeItem('refreshToken');
