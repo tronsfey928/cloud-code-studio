@@ -1,6 +1,6 @@
 # Cloud Code Studio
 
-Cloud Code Studio 是一个基于 Web 的云端 AI 编程工作台，将 React 前端、Node.js 后端与 [OpenCode](https://github.com/opencode-ai/opencode) CLI 深度集成，提供浏览器内的 AI 辅助编程体验。本项目设计为与基础镜像打包后，由外部安全沙箱服务拉起运行，不包含容器编排逻辑。
+Cloud Code Studio 是一个基于 Web 的云端 AI 编程工作台，将 React 19 前端、NestJS 后端与 [OpenCode](https://github.com/opencode-ai/opencode) / [Claude Code](https://github.com/anthropics/claude-code) CLI 深度集成，提供浏览器内的 AI 辅助编程体验。本项目设计为与基础镜像打包后，由外部安全沙箱服务拉起运行，不包含容器编排逻辑。
 
 ---
 
