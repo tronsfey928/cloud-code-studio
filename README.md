@@ -11,13 +11,16 @@ Cloud Code Studio 是一个基于 Web 的云端 AI 编程工作台，将 React 1
 - [运行环境要求](#运行环境要求)
 - [一键启动](#一键启动)
 - [环境变量配置](#环境变量配置)
+- [协议规范](#协议规范)
+  - [统一响应格式](#统一响应格式)
+  - [API 端点](#api-端点)
+  - [WebSocket 协议](#websocket-协议)
 - [MCP 服务注册](#mcp-服务注册)
-- [安全架构](#安全架构)
 - [预设命令（Setup Commands）](#预设命令setup-commands)
+- [安全架构](#安全架构)
 - [项目结构](#项目结构)
-- [API 概览](#api-概览)
-- [WebSocket 事件](#websocket-事件)
 - [开发指南](#开发指南)
+- [界面截图](#界面截图)
 
 ---
 
@@ -27,43 +30,44 @@ Cloud Code Studio 是一个基于 Web 的云端 AI 编程工作台，将 React 1
 ┌──────────────────────────────────────────────────────────────────┐
 │                         安全沙箱环境                              │
 │                                                                  │
-│  ┌─────────────┐     HTTP/WS      ┌──────────────┐              │
-│  │  React SPA  │◄────────────────►│  Express API  │              │
-│  │  (Vite)     │   port 5173/3000  │  + Socket.IO │              │
-│  │  Ant Design │                   │  port 5000   │              │
-│  └─────────────┘                   └──────┬───────┘              │
-│                                           │                      │
-│                          ┌────────────────┼────────────────┐     │
-│                          │                │                │     │
-│                          ▼                ▼                ▼     │
-│                    ┌──────────┐    ┌──────────┐    ┌──────────┐ │
-│                    │  MySQL   │    │  Redis   │    │ OpenCode │ │
-│                    │  8.0+    │    │  7+      │    │   CLI    │ │
-│                    └──────────┘    └──────────┘    └─────┬────┘ │
-│                                                         │       │
-│                                            ┌────────────┤       │
-│                                            │            │       │
-│                                            ▼            ▼       │
-│                                      ┌──────────┐  ┌────────┐  │
-│                                      │ LLM API  │  │  MCP   │  │
-│                                      │ Provider │  │Servers │  │
-│                                      └──────────┘  └────────┘  │
-│                                                                  │
-│  ┌─────────────────────────────────────────────────────────────┐ │
-│  │                   /data/workspaces/{id}                     │ │
-│  │              本地文件系统 (Git 仓库克隆)                      │ │
-│  └─────────────────────────────────────────────────────────────┘ │
-└──────────────────────────────────────────────────────────────────┘
+│  ┌─────────────┐     HTTP/WS      ┌──────────────────────┐      │
+│  │  React 19   │◄────────────────►│  NestJS API          │      │
+│  │  SPA (Vite) │   port 5173/3000  │  + Socket.IO Gateway │      │
+│  │  shadcn/ui  │                   │  port 5000           │      │
+│  └─────────────┘                   └──────────┬───────────┘      │
+│                                               │                  │
+│                          ┌────────────────────┼──────────────┐   │
+│                          │                    │              │   │
+│                          ▼                    ▼              ▼   │
+│                    ┌──────────┐        ┌──────────┐  ┌──────────┐│
+│                    │  MySQL   │        │  Redis   │  │  AI CLI  ││
+│                    │  8.0+    │        │  7+      │  │ (可选缓存)││
+│                    │ TypeORM  │        │ (可选)   │  │opencode/ ││
+│                    └──────────┘        └──────────┘  │claude    ││
+│                                                       └────┬─────┘│
+│                                            ┌───────────────┤      │
+│                                            │               │      │
+│                                            ▼               ▼      │
+│                                      ┌──────────┐  ┌──────────┐  │
+│                                      │ LLM API  │  │  MCP     │  │
+│                                      │ Provider │  │ Servers  │  │
+│                                      └──────────┘  └──────────┘  │
+│                                                                   │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │              /data/workspaces/{workspaceId}                 │  │
+│  │         本地文件系统（Git 仓库克隆 + .opencode.json）        │  │
+│  └────────────────────────────────────────────────────────────┘  │
+└───────────────────────────────────────────────────────────────────┘
 ```
 
 **核心流程：**
 
-1. 用户通过 React 前端创建 Workspace，指定 Git 仓库地址
+1. 用户通过 React 前端注册/登录，创建 Workspace 并填写 Git 仓库地址
 2. 后端通过 `git clone` 将仓库克隆到本地 `/data/workspaces/{workspaceId}` 目录
-3. 用户在 Chat 界面发送编程指令
-4. 后端调用 OpenCode CLI 在对应工作区目录内执行 AI 编程任务
-5. OpenCode 的 JSON-line 输出通过 WebSocket 实时推送到前端（包括代码变更、工具调用、计划步骤等）
-6. MCP 服务器为 OpenCode 提供扩展能力（代码搜索、文档检索等）
+3. 用户在 Chat 界面（Socket.IO）发送编程指令
+4. 后端生成 `.opencode.json` 配置，调用 AI CLI（OpenCode 或 Claude Code）在工作区目录内执行
+5. AI CLI 的 JSON-line 输出实时解析后通过 Socket.IO 推送到前端（流式文本、工具调用、代码变更、执行计划等）
+6. MCP 服务器为 AI CLI 提供扩展工具能力（代码搜索、文档检索等）
 
 ---
 
@@ -71,256 +75,377 @@ Cloud Code Studio 是一个基于 Web 的云端 AI 编程工作台，将 React 1
 
 | 层级 | 技术 | 说明 |
 |------|------|------|
-| **前端** | React 18 + TypeScript + Vite | 单页应用 |
-| **UI 组件** | Ant Design 5 + TailwindCSS | 组件库 + 工具类 |
-| **状态管理** | Zustand | 轻量级状态管理 |
-| **实时通信** | Socket.IO | WebSocket 双向通信 |
-| **后端** | Express.js + TypeScript | RESTful API + WebSocket |
-| **ORM** | Sequelize | MySQL 数据库操作 |
-| **缓存** | ioredis | Redis 客户端 |
+| **前端框架** | React 19 + TypeScript + Vite | 单页应用，懒加载路由 |
+| **UI 组件** | shadcn/ui（Radix UI 原语）| 无障碍、可组合组件库 |
+| **样式** | TailwindCSS v4（CSS-first）| `@theme` + oklch 色彩系统，无需配置文件 |
+| **状态管理** | Zustand | 轻量级全局状态（auth、workspace、chat） |
+| **实时通信** | Socket.IO | WebSocket 双向通信（含 polling 降级） |
+| **后端框架** | NestJS + TypeScript（严格模式）| 模块化 DI 架构 |
+| **ORM** | TypeORM | MySQL 8.0 数据库操作，实体类定义表结构 |
+| **缓存** | ioredis（可选）| Redis 缓存；未配置时自动降级为内存缓存 |
 | **认证** | JWT + bcryptjs + Refresh Token | Access/Refresh Token 双令牌轮换 |
-| **AI 引擎** | OpenCode CLI | LLM 驱动的编程助手 |
-| **文件操作** | Node.js fs 模块 | 本地文件系统读写 |
-| **Git 操作** | child_process (git) | Git CLI 封装 |
+| **API 文档** | @nestjs/swagger | 自动生成 OpenAPI 规范，可在 `/api/docs` 访问 |
+| **AI 引擎** | OpenCode CLI / Claude Code CLI | 两种 AI 编程引擎，按工作区配置切换 |
+| **Git 操作** | child_process (git CLI) | 仓库克隆、分支信息、状态查询 |
 
 ---
 
 ## 运行环境要求
 
-本项目需要在以下环境中直接运行（已在基础镜像中预装）：
+本项目在基础镜像中直接运行（无 Docker 容器化），需要预装以下依赖：
 
 | 依赖 | 最低版本 | 说明 |
 |------|----------|------|
 | **Node.js** | 20.x | 运行后端及构建前端 |
 | **npm** | 9.x | 包管理器 |
-| **MySQL** | 8.0 | 数据持久化（用户、工作区、聊天记录） |
-| **Redis** | 7.x | 会话缓存 |
-| **Git** | 2.x | 仓库克隆与操作 |
-| **OpenCode CLI** | latest | AI 编程引擎（需在 PATH 中可用） |
-| **bash** | 4.x+ | Shell 环境 |
-
-### 验证环境依赖
-
-```bash
-# 检查所有必要依赖
-node --version        # >= 20.x
-npm --version         # >= 9.x
-mysql --version       # >= 8.0
-redis-cli --version   # >= 7.x
-git --version         # >= 2.x
-which opencode        # 确认 opencode 已安装
-```
+| **MySQL** | 8.0 | 数据持久化（用户、工作区、聊天记录、配置） |
+| **Redis** | 7.x | 会话缓存（可选，未配置则使用内存缓存） |
+| **Git** | 2.x | 仓库克隆与工作区操作 |
+| **OpenCode CLI** | latest | AI 编程引擎（需在 `PATH` 中可用） |
+| **Claude Code CLI** | latest | 备选 AI 编程引擎（按需安装） |
+| **bash** | 4.x+ | Shell 环境（用于执行 AI 命令） |
 
 ---
 
 ## 一键启动
 
-将以下脚本保存为 `start.sh` 并执行：
-
 ```bash
-#!/bin/bash
-set -e
+# 克隆仓库
+git clone <repo-url> cloud-code-studio
+cd cloud-code-studio
 
-# ─── 颜色输出 ─────────────────────────────────────────────
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
+# 配置环境变量（首次）
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
+# 编辑 backend/.env，至少配置 MYSQL_* 和 JWT_SECRET
 
-log()  { echo -e "${GREEN}[✓]${NC} $1"; }
-warn() { echo -e "${YELLOW}[!]${NC} $1"; }
-err()  { echo -e "${RED}[✗]${NC} $1"; exit 1; }
-
-# ─── 环境检查 ─────────────────────────────────────────────
-echo "========================================="
-echo "  Cloud Code Studio - 环境检查 & 启动"
-echo "========================================="
-
-command -v node    >/dev/null 2>&1 || err "未找到 node，请安装 Node.js 20+"
-command -v npm     >/dev/null 2>&1 || err "未找到 npm"
-command -v git     >/dev/null 2>&1 || err "未找到 git，请安装 git"
-command -v mysql   >/dev/null 2>&1 || warn "未找到 mysql 客户端（服务可能已运行）"
-command -v redis-cli >/dev/null 2>&1 || warn "未找到 redis-cli（服务可能已运行）"
-
-if command -v opencode >/dev/null 2>&1; then
-  log "OpenCode CLI 已安装: $(which opencode)"
-else
-  warn "未找到 opencode CLI，AI 编程功能将受限"
-fi
-
-log "Node.js $(node --version)"
-log "npm $(npm --version)"
-log "Git $(git --version | awk '{print $3}')"
-
-# ─── 项目根目录 ───────────────────────────────────────────
-PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$PROJECT_DIR"
-
-# ─── 配置环境变量 ─────────────────────────────────────────
-if [ ! -f backend/.env ]; then
-  if [ -f backend/.env.example ]; then
-    cp backend/.env.example backend/.env
-    log "已从 .env.example 创建 backend/.env（请根据需要修改）"
-  fi
-fi
-
-if [ ! -f frontend/.env ]; then
-  if [ -f frontend/.env.example ]; then
-    cp frontend/.env.example frontend/.env
-    log "已从 .env.example 创建 frontend/.env"
-  fi
-fi
-
-# ─── 创建工作区目录 ───────────────────────────────────────
-WORKSPACES_DIR="${WORKSPACES_DIR:-/data/workspaces}"
-mkdir -p "$WORKSPACES_DIR" 2>/dev/null || warn "无法创建 $WORKSPACES_DIR，请手动创建"
-log "工作区目录: $WORKSPACES_DIR"
-
-# ─── 安装依赖 & 构建 ─────────────────────────────────────
-log "安装后端依赖..."
-cd "$PROJECT_DIR/backend"
-npm install --production=false
-
-log "构建后端..."
-npm run build
-
-log "安装前端依赖..."
-cd "$PROJECT_DIR/frontend"
-npm install --production=false
-
-log "构建前端..."
-npm run build
-
-# ─── 启动服务 ─────────────────────────────────────────────
-cd "$PROJECT_DIR"
-
-log "启动后端服务 (port ${PORT:-5000})..."
-cd backend && node dist/index.js &
-BACKEND_PID=$!
-
-log "启动前端开发服务 (port 5173)..."
-cd "$PROJECT_DIR/frontend" && npx vite --host 0.0.0.0 &
-FRONTEND_PID=$!
-
-echo ""
-echo "========================================="
-log "Cloud Code Studio 已启动！"
-echo ""
-echo "  前端: http://localhost:5173"
-echo "  后端: http://localhost:${PORT:-5000}"
-echo "  API:  http://localhost:${PORT:-5000}/api"
-echo "========================================="
-
-# ─── 优雅退出 ─────────────────────────────────────────────
-cleanup() {
-  echo ""
-  log "正在关闭服务..."
-  kill $BACKEND_PID 2>/dev/null
-  kill $FRONTEND_PID 2>/dev/null
-  wait
-  log "已关闭"
-}
-trap cleanup EXIT INT TERM
-
-wait
+# 一键安装依赖、构建并启动
+bash start.sh
 ```
 
-### 快速启动
-
-```bash
-chmod +x start.sh
-./start.sh
-```
-
-> **生产模式**：前端构建产物位于 `frontend/dist/`，可使用 Nginx 等 Web 服务器托管静态文件，并反向代理 API 请求到后端 5000 端口。
+启动后访问：
+- **前端**：`http://localhost:5173`
+- **后端 API**：`http://localhost:5000/api`
+- **Swagger 文档**：`http://localhost:5000/api/docs`
 
 ---
 
 ## 环境变量配置
 
-### 后端 (`backend/.env`)
+### 后端（`backend/.env`）
 
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `PORT` | `5000` | 后端服务端口 |
-| `NODE_ENV` | `development` | 运行环境 |
-| `MYSQL_HOST` | `localhost` | MySQL 主机 |
-| `MYSQL_PORT` | `3306` | MySQL 端口 |
-| `MYSQL_USER` | `cloudcode` | MySQL 用户名 |
-| `MYSQL_PASSWORD` | `cloudcode` | MySQL 密码 |
-| `MYSQL_DATABASE` | `cloudcode` | 数据库名 |
-| `REDIS_URL` | `redis://localhost:6379` | Redis 连接地址 |
-| `JWT_SECRET` | — | JWT 签名密钥 (**生产必改**) |
-| `JWT_EXPIRY` | `24h` | Token 有效期 |
-| `ALLOWED_ORIGINS` | `http://localhost:3000` | CORS 允许来源（逗号分隔） |
-| `WORKSPACES_DIR` | `/data/workspaces` | 工作区文件存储目录 |
-| `OPENCODE_LLM_PROVIDER` | `anthropic` | 全局默认 LLM 提供商 |
-| `OPENCODE_LLM_MODEL` | — | 全局默认模型名称 |
-| `OPENCODE_LLM_API_KEY` | — | 全局默认 API Key |
-| `OPENCODE_LLM_BASE_URL` | — | 自定义 API 端点 |
+```dotenv
+# ── 服务器 ────────────────────────────────────────────────
+PORT=5000
+NODE_ENV=development          # production 模式下 JWT_SECRET 不能为默认值
 
-### 前端 (`frontend/.env`)
+# ── 数据库（MySQL）────────────────────────────────────────
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+MYSQL_USER=cloudcode
+MYSQL_PASSWORD=cloudcode
+MYSQL_DATABASE=cloudcode
 
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `VITE_API_URL` | `http://localhost:5000/api` | 后端 API 地址 |
-| `VITE_WS_URL` | `http://localhost:5000` | WebSocket 服务地址 |
+# ── 缓存（Redis，可选）────────────────────────────────────
+REDIS_URL=                    # 留空则使用内存缓存
+
+# ── 认证 ─────────────────────────────────────────────────
+JWT_SECRET=change-this-to-a-strong-random-secret
+JWT_EXPIRY=24h
+
+# ── CORS ─────────────────────────────────────────────────
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+
+# ── 文件上传 ──────────────────────────────────────────────
+MAX_FILE_SIZE=10485760        # 单文件上限，默认 10 MB
+
+# ── 工作区存储目录 ────────────────────────────────────────
+WORKSPACES_DIR=/data/workspaces
+
+# ── OpenCode/Claude Code 默认 LLM 配置 ───────────────────
+OPENCODE_LLM_PROVIDER=anthropic
+OPENCODE_LLM_MODEL=
+OPENCODE_LLM_API_KEY=
+OPENCODE_LLM_BASE_URL=
+```
+
+### 前端（`frontend/.env`）
+
+```dotenv
+VITE_API_URL=http://localhost:5000/api
+VITE_WS_URL=http://localhost:5000
+```
+
+---
+
+## 协议规范
+
+### 统一响应格式
+
+所有 HTTP API 响应均由 `ResponseInterceptor` 统一包装为如下格式：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": { ... }
+}
+```
+
+错误响应（由 `AllExceptionsFilter` 处理）：
+
+```json
+{
+  "code": 404,
+  "message": "Workspace not found",
+  "data": null
+}
+```
+
+### API 端点
+
+所有路径以 `/api` 为前缀。除登录/注册外，所有端点需在 `Authorization` 请求头携带 Bearer JWT。
+
+#### 认证（`/api/auth`）
+
+| 方法 | 路径 | 认证 | 说明 |
+|------|------|------|------|
+| `POST` | `/api/auth/register` | 无 | 注册新用户（用户名、邮箱、密码） |
+| `POST` | `/api/auth/login` | 无 | 登录，返回 `{ accessToken, refreshToken, user }` |
+| `POST` | `/api/auth/refresh-token` | 无 | 用 Refresh Token 换取新令牌对（Token 轮换） |
+| `POST` | `/api/auth/logout` | ✅ | 撤销指定 Refresh Token |
+| `GET` | `/api/auth/me` | ✅ | 获取当前用户信息 |
+| `POST` | `/api/auth/change-password` | ✅ | 修改密码（同时撤销所有 Refresh Token） |
+
+#### 工作区（`/api/workspaces`）
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `POST` | `/api/workspaces` | 创建工作区（触发 `git clone`），状态初始为 `creating` |
+| `GET` | `/api/workspaces` | 获取当前用户的所有工作区列表 |
+| `GET` | `/api/workspaces/:id` | 获取单个工作区详情 |
+| `DELETE` | `/api/workspaces/:id` | 删除工作区（清除本地文件） |
+
+工作区状态枚举：`creating` | `ready` | `error`
+
+#### 聊天（`/api/chat`）
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `POST` | `/api/chat/sessions` | 创建聊天会话（关联到工作区） |
+| `GET` | `/api/chat/sessions` | 获取会话列表（可按 `?workspaceId=` 过滤） |
+| `GET` | `/api/chat/sessions/:id` | 获取单个会话及其消息列表 |
+| `POST` | `/api/chat/sessions/:id/messages` | 发送消息（SSE 流式响应，`Content-Type: text/event-stream`） |
+| `DELETE` | `/api/chat/sessions/:id` | 删除会话 |
+
+#### 文件操作（`/api/files`）
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `GET` | `/api/files/:workspaceId/tree` | 获取文件树（支持 `?path=` 和 `?depth=` 参数） |
+| `GET` | `/api/files/:workspaceId/read` | 读取文件内容（`?path=` 相对路径） |
+| `PUT` | `/api/files/:workspaceId/write` | 写入文件（`{ path, content }`） |
+| `POST` | `/api/files/:workspaceId/upload` | 上传文件（`multipart/form-data`，最大 10 MB） |
+
+#### AI 配置（`/api/opencode`）
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `GET` | `/api/opencode/:workspaceId/config` | 获取工作区的 AI 配置（API Key 自动掩码） |
+| `PUT` | `/api/opencode/:workspaceId/config` | 更新 AI 配置（LLM 提供商、模型、MCP 服务器、预设命令等） |
+
+**`PUT /api/opencode/:workspaceId/config` 请求体示例：**
+
+```json
+{
+  "codingProvider": "opencode",
+  "llmProvider": "anthropic",
+  "llmModel": "claude-3-7-sonnet-20250219",
+  "llmApiKey": "sk-ant-...",
+  "llmBaseUrl": "",
+  "mcpServers": [
+    { "name": "github-mcp", "url": "http://localhost:3001", "enabled": true, "transport": "sse" },
+    { "name": "local-tool", "enabled": true, "transport": "stdio", "command": "node", "args": ["/path/to/server.js"] }
+  ],
+  "setupCommands": ["npm install", "npm run build"],
+  "skills": []
+}
+```
+
+---
+
+### WebSocket 协议
+
+使用 Socket.IO 连接到 `VITE_WS_URL`（默认 `http://localhost:5000`），支持 `websocket` 和 `polling` 传输。
+
+**连接认证：**
+
+```js
+const socket = io('http://localhost:5000', {
+  auth: { token: '<JWT accessToken>' }
+});
+```
+
+认证失败时服务端发送 `error` 事件并断开连接。
+
+#### 客户端发送事件
+
+| 事件名 | 数据结构 | 说明 |
+|--------|----------|------|
+| `join_session` | `{ sessionId: string }` | 加入聊天会话房间；服务端回复 `session_joined` 和 `workspace_info` |
+| `chat_message` | `{ sessionId, content, attachments?, planMode? }` | 发送编程指令（最大 100 KB），可携带图片/文件附件 |
+| `plan_confirm` | `{ sessionId, planId, confirmed: boolean }` | 确认或拒绝 AI 生成的执行计划 |
+| `code_execution` | `{ sessionId, workspaceId, command }` | 在工作区内执行 Shell 命令 |
+| `start_dev_server` | `{ sessionId, workspaceId, command, port }` | 启动开发服务器（端口范围 1024–65535） |
+
+`attachments` 数组元素结构：
+```ts
+{ path: string; name: string; mimeType: string; data?: string /* base64 */ }
+```
+
+#### 服务端推送事件
+
+| 事件名 | 数据结构说明 | 说明 |
+|--------|-------------|------|
+| `session_joined` | `{ sessionId, messageCount }` | 成功加入会话 |
+| `workspace_info` | `{ workspaceId, branch, fileCount, recentFiles, gitStatus }` | 工作区元信息 |
+| `message` | 用户消息对象（含 `attachments`）| 用户消息已保存的广播 |
+| `message_start` | `{ id, role: 'assistant', timestamp }` | AI 响应开始（流式） |
+| `message_chunk` | `{ id, content, timestamp }` | AI 响应文本片段（逐块流式） |
+| `message_complete` | 完整 assistant 消息对象 | AI 响应完成并已持久化 |
+| `tool_call` | `{ id, toolName, input, output?, status, timestamp }` | AI 工具调用事件（file_write、bash、grep 等） |
+| `code_change` | `{ id, filePath, changeType, diff?, timestamp }` | 代码文件变更通知（created/modified/deleted） |
+| `plan_pending` | `{ id, steps, status: 'pending', timestamp }` | AI 生成执行计划，等待用户确认 |
+| `plan_status` | `{ id, status: 'confirmed' \| 'rejected', timestamp }` | 计划确认/拒绝状态广播 |
+| `dev_server_started` | `{ url, port, status: 'running', timestamp }` | 开发服务器已启动 |
+| `execution_start` | `{ sessionId, command }` | Shell 命令开始执行 |
+| `execution_complete` | `{ sessionId, result: { output, error, exitCode } }` | Shell 命令执行完毕 |
+| `error` | `{ message: string }` | 错误通知 |
+
+**房间模式：** 所有广播事件使用房间 `session:{sessionId}`，只有加入该会话的客户端可收到。
 
 ---
 
 ## MCP 服务注册
 
-Cloud Code Studio 支持为每个工作区配置 [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) 服务器，扩展 AI 编程能力。
+MCP（Model Context Protocol）服务器为 AI CLI 提供扩展工具能力，支持两种传输类型：
 
-### 通过 Web UI 配置
+| 传输类型 | 字段 | 说明 |
+|----------|------|------|
+| `sse` | `url` | HTTP SSE 长连接，适用于远程/网络 MCP 服务 |
+| `stdio` | `command` + `args` | 本地进程标准输入输出，适用于本地工具进程 |
 
-1. 打开任意工作区页面
-2. 点击右上角 **⚙ 设置** 按钮
-3. 在 **MCP Servers** 区域点击 **Add Server**
-4. 填写 MCP 服务器名称和 URL
-5. 启用/禁用切换开关控制是否生效
-6. 点击 **Save Configuration** 保存
-
-### 通过 API 配置
+### 通过 API 注册 MCP 服务
 
 ```bash
-# 获取当前配置
-curl -H "Authorization: Bearer <token>" \
-  http://localhost:5000/api/opencode/<workspaceId>/config
-
-# 更新 MCP 服务器列表
-curl -X PUT -H "Authorization: Bearer <token>" \
+curl -X PUT \
+  -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   http://localhost:5000/api/opencode/<workspaceId>/config \
   -d '{
     "mcpServers": [
-      { "name": "github-mcp", "url": "http://localhost:3001", "enabled": true },
-      { "name": "docs-search", "url": "http://localhost:3002", "enabled": true }
+      {
+        "name": "github-mcp",
+        "url": "http://localhost:3001",
+        "enabled": true,
+        "transport": "sse"
+      },
+      {
+        "name": "local-search",
+        "enabled": true,
+        "transport": "stdio",
+        "command": "node",
+        "args": ["/tools/search-server.js"]
+      }
     ]
   }'
 ```
 
 ### 工作原理
 
-当用户发送编程指令时，后端会：
+每次用户发送编程指令时，后端将：
 
-1. 从数据库加载该工作区的 OpenCode 配置（含 MCP 服务器列表）
+1. 从数据库加载该工作区的 AI 配置（含 MCP 服务器列表）
 2. 在工作区目录生成 `.opencode.json` 配置文件
-3. 调用 OpenCode CLI 执行任务——OpenCode 自动发现并连接已注册的 MCP 服务器
-4. MCP 服务器提供的工具（代码搜索、文档检索等）可被 LLM 自主调用
+3. 调用 AI CLI，CLI 自动发现并连接已注册的 MCP 服务器
+4. MCP 服务器提供的工具可被 LLM 自主调用
 
 生成的 `.opencode.json` 示例：
 
 ```json
 {
   "provider": "anthropic",
-  "model": "claude-3-sonnet",
+  "model": "claude-3-7-sonnet-20250219",
   "mcpServers": {
     "github-mcp": { "url": "http://localhost:3001" },
-    "docs-search": { "url": "http://localhost:3002" }
+    "local-search": { "command": "node", "args": ["/tools/search-server.js"] }
   }
 }
 ```
+
+---
+
+## 预设命令（Setup Commands）
+
+支持为每个工作区配置最多 **20 条** Shell 命令，在每次 AI 编程会话启动前自动顺序执行，用于环境初始化。
+
+**限制：** 每条命令最长 2048 字符，每条命令超时 60 秒；命令失败不会中断后续流程（仅记录警告日志）。
+
+### 使用场景
+
+```bash
+npm install              # 安装项目依赖
+pip install -r requirements.txt
+export NODE_ENV=development
+npx prisma migrate dev   # 数据库迁移
+npm run build            # 预构建
+```
+
+### 通过 Web UI 配置
+
+1. 打开任意工作区页面
+2. 点击右上角 **⚙ 设置** 按钮
+3. 在 **Setup Commands** 区域点击 **Add Command**
+4. 输入要执行的 Shell 命令，点击 **Save Configuration** 保存
+
+### 通过 API 配置
+
+```bash
+curl -X PUT \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  http://localhost:5000/api/opencode/<workspaceId>/config \
+  -d '{
+    "setupCommands": ["npm install", "npm run build"]
+  }'
+```
+
+---
+
+## 安全架构
+
+### 认证机制
+
+- **Access Token（JWT）**：有效期默认 24 小时，每次 API 请求在 `Authorization: Bearer` 头中携带
+- **Refresh Token**：有效期 7 天，使用 `crypto.randomBytes` 生成不透明令牌，存储在 `refresh_tokens` 表
+- **Token 轮换**：每次使用 Refresh Token 时，旧 Token 立即撤销并颁发新令牌对，防止 Token 重放攻击
+- **密码修改撤销**：修改密码后撤销所有现有 Refresh Token，强制重新登录
+- **密码强度校验**：8–128 字符，必须同时包含大写字母、小写字母和数字
+- **生产模式保护**：`NODE_ENV=production` 时若 `JWT_SECRET` 为默认值 `your-secret-key`，服务拒绝启动
+
+### 传输与访问安全
+
+- **Helmet**：自动设置安全 HTTP 响应头（CSP、HSTS 等）
+- **CORS**：仅允许 `ALLOWED_ORIGINS` 中配置的来源
+- **速率限制**：全局 200 次/15分钟、认证端点 20 次/15分钟
+- **密码哈希**：bcrypt（12 轮盐值）
+- **输入验证**：所有 API DTO 通过 `class-validator` 严格校验，NestJS 全局 `ValidationPipe` 启用 `whitelist`（剥离未声明字段）
+- **路径安全**：文件路径通过 `isValidRelativePath` 校验，防止路径遍历攻击
+- **Shell 注入防护**：Shell 命令参数通过单引号转义（`'\''` 习语），包裹所有用户输入
+
+### API Key 保护
+
+`GET /api/opencode/:workspaceId/config` 返回配置时，`llmApiKey` 字段自动掩码（仅显示后 4 位），不在响应中泄露明文密钥。
 
 ---
 
@@ -328,261 +453,173 @@ curl -X PUT -H "Authorization: Bearer <token>" \
 
 ```
 cloud-code-studio/
-├── README.md                      # 本文档
-├── start.sh                       # 一键启动脚本
-├── backend/                       # Node.js 后端
+├── README.md                        # 本文档
+├── start.sh                         # 一键构建 & 启动脚本
+│
+├── backend/                         # NestJS 后端
 │   ├── package.json
 │   ├── tsconfig.json
-│   ├── .env.example               # 环境变量模板
+│   ├── nest-cli.json
+│   ├── .env.example                 # 环境变量模板
 │   └── src/
-│       ├── index.ts               # 入口：启动 HTTP + WebSocket 服务
-│       ├── app.ts                 # Express 应用配置（CORS、限流、路由）
-│       ├── config/
-│       │   ├── index.ts           # 环境变量读取
-│       │   └── database.ts        # Sequelize MySQL 连接
-│       ├── models/
-│       │   ├── User.ts            # 用户模型
-│       │   ├── RefreshToken.ts    # Refresh Token 模型
-│       │   ├── Workspace.ts       # 工作区模型
-│       │   ├── ChatSession.ts     # 聊天会话模型
-│       │   ├── ChatMessage.ts     # 聊天消息模型
-│       │   ├── OpenCodeConfig.ts  # OpenCode/MCP 配置模型
-│       │   └── FileRecord.ts      # 文件上传记录
-│       ├── services/
-│       │   ├── opencodeService.ts # OpenCode CLI 封装 + MCP 配置写入
-│       │   ├── fileService.ts     # 本地文件系统操作
-│       │   └── gitService.ts      # Git CLI 封装
-│       ├── controllers/           # 路由处理器
-│       ├── routes/                # API 路由定义
-│       ├── websocket/
-│       │   └── handler.ts         # Socket.IO 事件处理
-│       ├── middleware/            # 认证、错误处理、限流
-│       ├── types/                 # TypeScript 类型定义
-│       └── utils/                 # 日志等工具
+│       ├── main.ts                  # 入口：启动 HTTP + WebSocket，注册 Swagger
+│       ├── app.module.ts            # 根模块（汇聚所有业务模块）
+│       ├── config/                  # 配置模块（registerAs 分域注册）
+│       │   ├── app.config.ts        # 端口、CORS、工作区目录等
+│       │   ├── database.config.ts   # TypeORM MySQL 连接配置
+│       │   ├── jwt.config.ts        # JWT 密钥与有效期
+│       │   ├── opencode.config.ts   # 默认 LLM 配置
+│       │   └── redis.config.ts      # Redis 连接配置
+│       ├── common/                  # 共享代码
+│       │   ├── constants.ts         # 全局常量（消息长度限制等）
+│       │   ├── interfaces/          # TypeScript 接口与枚举定义
+│       │   ├── validation.ts        # 路径/URL/端口校验工具函数
+│       │   ├── decorators/          # @CurrentUser 等自定义装饰器
+│       │   ├── filters/             # AllExceptionsFilter（统一错误响应）
+│       │   ├── guards/              # JwtAuthGuard
+│       │   ├── interceptors/        # ResponseInterceptor（{ code, message, data }）
+│       │   └── dto/                 # 共享 DTO（分页等）
+│       └── modules/                 # 业务模块
+│           ├── auth/                # 认证（注册/登录/Token 轮换）
+│           │   ├── auth.module.ts
+│           │   ├── auth.controller.ts
+│           │   ├── auth.service.ts
+│           │   ├── dto/             # RegisterDto、LoginDto、ChangePasswordDto 等
+│           │   └── entities/        # User、RefreshToken 实体
+│           ├── workspace/           # 工作区管理（CRUD + git clone）
+│           │   ├── workspace.module.ts
+│           │   ├── workspace.controller.ts
+│           │   ├── workspace.service.ts
+│           │   ├── git.service.ts   # Git CLI 封装
+│           │   ├── dto/
+│           │   └── entities/        # Workspace 实体
+│           ├── chat/                # 聊天（REST 会话管理 + Socket.IO 网关）
+│           │   ├── chat.module.ts
+│           │   ├── chat.controller.ts   # REST：会话 CRUD + SSE 消息流
+│           │   ├── chat.gateway.ts      # Socket.IO：实时消息处理
+│           │   ├── chat.service.ts
+│           │   ├── dto/
+│           │   └── entities/        # ChatSession、ChatMessage 实体
+│           ├── file/                # 文件操作（树/读/写/上传）
+│           │   ├── file.module.ts
+│           │   ├── file.controller.ts
+│           │   ├── file.service.ts
+│           │   ├── dto/
+│           │   └── entities/
+│           └── opencode/            # AI 配置 + CLI 封装
+│               ├── opencode.module.ts
+│               ├── opencode.controller.ts    # AI 配置 CRUD
+│               ├── opencode-config.service.ts
+│               ├── opencode.service.ts       # OpenCode CLI 封装
+│               ├── claude-code.service.ts    # Claude Code CLI 封装
+│               ├── coding-service.factory.ts # 按配置路由到对应 CLI
+│               ├── cache.service.ts          # Redis/内存缓存封装
+│               ├── dto/
+│               └── entities/        # OpenCodeConfig 实体
 │
-└── frontend/                      # React 前端
+└── frontend/                        # React 19 前端
     ├── package.json
-    ├── vite.config.ts
+    ├── vite.config.ts               # Vite 8 + @tailwindcss/vite 插件
     ├── tsconfig.json
     ├── .env.example
     └── src/
-        ├── main.tsx               # React 入口
-        ├── App.tsx                # 路由 & 布局
+        ├── main.tsx                 # React 入口
+        ├── App.tsx                  # 路由 & 懒加载布局
+        ├── app.css                  # TailwindCSS v4 @theme（oklch 色彩系统）
         ├── pages/
-        │   ├── Login/             # 登录页
-        │   ├── Register/          # 注册页
-        │   ├── Dashboard/         # 工作区列表
-        │   └── Workspace/         # 主编程界面（Chat + 文件浏览器）
+        │   ├── Login/               # 登录页
+        │   ├── Register/            # 注册页
+        │   ├── Dashboard/           # 工作区列表（创建/删除/跳转）
+        │   └── Workspace/           # 主编程界面（Chat + 文件浏览器 + 设置）
         ├── components/
-        │   ├── Chat/              # 聊天 UI（消息、工具调用、代码变更）
-        │   ├── FileExplorer/      # 文件树浏览器
-        │   ├── OpenCodeSettings/  # LLM & MCP 配置面板
-        │   └── Common/            # 通用组件
+        │   ├── ui/                  # shadcn/ui 组件（Button、Card、Dialog 等）
+        │   ├── Chat/                # 消息列表、工具调用、代码变更展示
+        │   ├── FileExplorer/        # 文件树浏览器
+        │   ├── OpenCodeSettings/    # LLM、MCP、Setup Commands 配置面板
+        │   └── Common/              # ErrorBoundary、LoadingSpinner 等
+        ├── hooks/
+        │   ├── useWebSocket.ts      # Socket.IO 封装（refs 模式防内存泄漏）
+        │   └── useAuth.ts           # 认证状态与操作
+        ├── stores/                  # Zustand Store
+        │   ├── authStore.ts         # 用户认证状态
+        │   ├── workspaceStore.ts    # 工作区列表与当前工作区
+        │   └── chatStore.ts         # 会话与消息状态
         ├── services/
-        │   ├── api.ts             # Axios HTTP 客户端
-        │   └── websocket.ts       # Socket.IO 客户端
-        ├── stores/                # Zustand 状态管理
-        ├── hooks/                 # 自定义 React Hooks
-        ├── types/                 # 前端类型定义
-        └── utils/                 # 工具函数
+        │   └── api.ts               # Axios 客户端（自动 Token 刷新、并发保护）
+        ├── types/                   # 前端 TypeScript 类型
+        └── utils/                   # 工具函数（时间格式化、颜色映射等）
 ```
-
----
-
-## API 概览
-
-所有 API 路径以 `/api` 为前缀，需要 JWT Bearer Token 认证（除登录注册外）。
-
-### 认证
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/api/auth/register` | 注册新用户 |
-| POST | `/api/auth/login` | 用户登录，返回 JWT + Refresh Token |
-| POST | `/api/auth/refresh` | 使用 Refresh Token 获取新的 Access Token |
-| POST | `/api/auth/logout` | 注销并撤销 Refresh Token |
-| GET | `/api/auth/me` | 获取当前用户信息 |
-| PUT | `/api/auth/me/password` | 修改密码（同时撤销所有 Refresh Token） |
-
-### 工作区
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/api/workspaces` | 创建工作区（触发 Git 克隆） |
-| GET | `/api/workspaces` | 获取用户的所有工作区 |
-| GET | `/api/workspaces/:id` | 获取单个工作区详情 |
-| DELETE | `/api/workspaces/:id` | 删除工作区（清除文件） |
-
-### 聊天
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| POST | `/api/chat/sessions` | 创建聊天会话 |
-| GET | `/api/chat/sessions` | 获取会话列表 |
-| GET | `/api/chat/sessions/:id` | 获取会话及消息 |
-| POST | `/api/chat/sessions/:id/messages` | 发送消息（SSE 流式响应） |
-| DELETE | `/api/chat/sessions/:id` | 删除会话 |
-
-### 文件操作
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/files/:workspaceId/tree` | 获取文件树 |
-| GET | `/api/files/:workspaceId/read` | 读取文件内容 |
-| PUT | `/api/files/:workspaceId/write` | 写入文件 |
-| POST | `/api/files/:workspaceId/upload` | 上传文件 |
-
-### OpenCode 配置
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/api/opencode/:workspaceId/config` | 获取 OpenCode/MCP 配置 |
-| PUT | `/api/opencode/:workspaceId/config` | 更新配置（含 MCP 服务器） |
-
----
-
-## WebSocket 事件
-
-通过 Socket.IO 连接到后端（`ws://localhost:5000`），使用 JWT Token 认证。
-
-### 客户端发送
-
-| 事件 | 数据 | 说明 |
-|------|------|------|
-| `join_session` | `{ sessionId }` | 加入聊天会话房间 |
-| `chat_message` | `{ sessionId, content, attachments?, planMode? }` | 发送编程指令 |
-| `plan_confirm` | `{ sessionId, planId, confirmed }` | 确认/拒绝执行计划 |
-| `code_execution` | `{ sessionId, workspaceId, command }` | 执行 Shell 命令 |
-| `start_dev_server` | `{ sessionId, workspaceId, command, port }` | 启动开发服务器 |
-
-### 服务端推送
-
-| 事件 | 说明 |
-|------|------|
-| `session_joined` | 成功加入会话 |
-| `workspace_info` | 工作区信息（分支、文件数、Git 状态） |
-| `message` | 用户消息广播 |
-| `message_start` | AI 响应开始 |
-| `message_chunk` | AI 响应文本片段（流式） |
-| `message_complete` | AI 响应完成 |
-| `tool_call` | OpenCode 调用工具（文件写入、bash、grep 等） |
-| `code_change` | 代码文件变更通知 |
-| `plan_pending` | AI 生成执行计划待确认 |
-| `plan_status` | 计划确认/拒绝状态 |
-| `dev_server_started` | 开发服务器已启动 |
-| `error` | 错误通知 |
-
----
-
-## 安全架构
-
-Cloud Code Studio 采用多层安全防护：
-
-### 认证机制
-
-- **Access Token（JWT）**：短生命周期（默认 24 小时），用于 API 请求认证
-- **Refresh Token**：长生命周期（7 天），用于无感刷新 Access Token
-- **Token 轮换**：每次使用 Refresh Token 时，旧 Token 被撤销并发放新 Token 对，防止 Token 重放攻击
-- **登出撤销**：登出时服务端撤销 Refresh Token
-- **密码修改撤销**：修改密码后撤销所有现有 Refresh Token，强制重新登录
-- **密码强度校验**：8–128 字符，必须包含大写字母、小写字母和数字
-
-### 传输与访问安全
-
-- **Helmet**：自动设置安全 HTTP 响应头（CSP、HSTS 等）
-- **CORS**：仅允许配置的域名访问
-- **速率限制**：全局 200 次/15分钟、认证端点 20 次/15分钟
-- **密码哈希**：bcrypt（盐值 12 轮）
-
-### 前端安全
-
-- **自动刷新**：401 响应时前端自动尝试 Token 刷新，失败后才重定向到登录页
-- **并发保护**：多个并发请求触发 401 时只发送一次 Token 刷新请求
-
----
-
-## 预设命令（Setup Commands）
-
-Cloud Code Studio 支持为每个工作区配置预设 Shell 命令，在每次启动 AI 编程会话前自动执行，用于环境初始化。
-
-### 使用场景
-
-- 安装项目依赖：`npm install`、`pip install -r requirements.txt`
-- 设置环境变量：`export NODE_ENV=development`
-- 构建项目：`npm run build`
-- 数据库迁移：`npx prisma migrate dev`
-- 启动辅助服务
-
-### 通过 Web UI 配置
-
-1. 打开任意工作区页面
-2. 点击右上角 **⚙ 设置** 按钮
-3. 在 **Setup Commands** 区域点击 **Add Command**
-4. 输入要执行的 Shell 命令
-5. 点击 **Save Configuration** 保存
-
-### 通过 API 配置
-
-```bash
-curl -X PUT -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  http://localhost:5000/api/opencode/<workspaceId>/config \
-  -d '{
-    "setupCommands": [
-      "npm install",
-      "npm run build"
-    ]
-  }'
-```
-
-### 工作原理
-
-当用户发送编程指令时，后端会在调用 OpenCode CLI 之前：
-
-1. 从数据库加载该工作区的 OpenCode 配置
-2. 按顺序执行所有配置的预设命令（每个命令超时限制 60 秒）
-3. 命令失败不会阻断后续编程会话（仅记录警告日志）
-4. 所有命令在工作区目录内执行
 
 ---
 
 ## 开发指南
 
-### 本地开发
+### 本地开发（热重载）
 
 ```bash
-# 后端开发模式（自动重载）
+# 后端开发模式（文件变更自动重启）
 cd backend
-cp .env.example .env   # 首次需要配置
+cp .env.example .env    # 首次需配置 MYSQL_* 和 JWT_SECRET
 npm install
-npm run dev:watch
+npm run dev             # 或 npm run dev:watch（nest build --watch）
 
-# 前端开发模式（HMR）
+# 前端开发模式（Vite HMR）
 cd frontend
-cp .env.example .env   # 首次需要配置
+cp .env.example .env
 npm install
 npm run dev
 ```
 
-### 构建
+### 构建生产版本
 
 ```bash
-# 后端
-cd backend && npm run build    # 输出到 dist/
+# 后端（输出到 backend/dist/）
+cd backend && npm run build
 
-# 前端
-cd frontend && npm run build   # 输出到 dist/
+# 前端（输出到 frontend/dist/）
+cd frontend && npm run build
 ```
 
 ### 类型检查
 
 ```bash
-# 后端
-cd backend && npx tsc --noEmit
-
-# 前端
+cd backend  && npx tsc --noEmit
 cd frontend && npx tsc --noEmit
 ```
+
+### Swagger API 文档
+
+开发模式启动后访问：`http://localhost:5000/api/docs`
+
+所有端点均有完整的 `@ApiOperation`、`@ApiResponse` 和 DTO Schema 注解，可直接在 Swagger UI 中调试。
+
+---
+
+## 界面截图
+
+### 工作区列表（Dashboard）
+
+> 展示用户的所有工作区卡片，支持创建（填写 Git 仓库地址）、删除操作，以及工作区状态标签（creating / ready / error）。
+
+![Dashboard 工作区列表](docs/screenshots/dashboard.png)
+
+### AI 编程聊天界面
+
+> 主工作区页面，左侧为文件浏览器，右侧为 AI 聊天面板。实时展示 AI 流式响应、工具调用过程、代码文件变更详情。
+
+![AI 编程聊天界面](docs/screenshots/workspace-chat.png)
+
+### AI 配置面板
+
+> 工作区设置弹窗，可配置 AI 引擎（OpenCode / Claude Code）、LLM 提供商与模型、API Key、MCP 服务器列表和预设命令。
+
+![AI 配置面板](docs/screenshots/opencode-settings.png)
+
+### 文件浏览器
+
+> 内嵌文件树，支持展开/折叠目录、点击预览文件内容，与 AI 聊天联动展示最近变更文件。
+
+![文件浏览器](docs/screenshots/file-explorer.png)
 
 ---
 
