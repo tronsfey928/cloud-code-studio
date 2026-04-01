@@ -24,6 +24,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JwtPayload } from '../../common/interfaces';
 import { isValidRelativePath } from '../../common/validation';
+import { MAX_FILE_CONTENT_LENGTH } from '../../common/constants';
 
 @ApiTags('files')
 @Controller('api/files')
@@ -86,7 +87,7 @@ export class FileController {
   @Post(':workspaceId/upload')
   @UseInterceptors(FileInterceptor('file', {
     storage: memoryStorage(),
-    limits: { fileSize: 10 * 1024 * 1024, files: 10 },
+    limits: { fileSize: MAX_FILE_CONTENT_LENGTH, files: 10 },
   }))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Upload a file to workspace' })
