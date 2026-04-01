@@ -303,7 +303,7 @@ const OpenCodeSettings: React.FC<OpenCodeSettingsProps> = ({ workspaceId, open, 
                             value={(server.args || []).join(', ')}
                             onChange={(e) => {
                               const args = e.target.value.split(',').map((a) => a.trim()).filter(Boolean);
-                              updateMcpServer(index, 'args', args as unknown as string);
+                              updateMcpServer(index, 'args', args);
                             }}
                           />
                         </>

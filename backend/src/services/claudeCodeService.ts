@@ -22,7 +22,7 @@ export interface ClaudeCodeStreamEvent {
 
 /**
  * Service that integrates with the Claude Code CLI (`claude`) for AI-powered
- * coding sessions.  It follows the same event-streaming interface as
+ * coding sessions. It follows the same event-streaming interface as
  * OpenCodeService so the WebSocket layer can use either interchangeably.
  */
 export class ClaudeCodeService {
