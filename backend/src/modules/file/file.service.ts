@@ -46,6 +46,12 @@ export class FileService {
     const fullPath = path.resolve(workspacePath, sanitizedPath);
     this.assertWithinWorkspace(fullPath, workspacePath);
 
+    const stat = await fs.stat(fullPath);
+    const MAX_READ_SIZE = 10 * 1024 * 1024; // 10 MB — consistent with upload limit
+    if (stat.size > MAX_READ_SIZE) {
+      throw new BadRequestException('File too large to read (max 10 MB)');
+    }
+
     const content = await fs.readFile(fullPath, 'utf8');
     return { path: sanitizedPath, content, encoding: 'utf8' };
   }

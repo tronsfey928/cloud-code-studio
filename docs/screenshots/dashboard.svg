@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="800" viewBox="0 0 1280 800">
+  <defs>
+    <style>
+      text { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1280" height="800" fill="#F8F8FC"/>
+
+  <!-- Header -->
+  <rect width="1280" height="56" fill="#FFFFFF"/>
+  <line x1="0" y1="56" x2="1280" y2="56" stroke="#E8E8F0" stroke-width="1"/>
+  <text x="32" y="34" font-size="16" font-weight="700" fill="#1A1A2E">CloudCode Studio</text>
+  <!-- User info -->
+  <text x="1130" y="34" font-size="13" fill="#8888A8">alex.chen</text>
+  <!-- Sign out button -->
+  <rect x="1185" y="16" width="82" height="28" rx="6" fill="transparent" stroke="#E8E8F0" stroke-width="1"/>
+  <text x="1197" y="33" font-size="13" fill="#4A4A6A">Sign out</text>
+
+  <!-- Main content -->
+  <text x="40" y="112" font-size="18" font-weight="600" fill="#1A1A2E">Workspaces</text>
+  <!-- New Workspace button -->
+  <rect x="1140" y="88" width="128" height="36" rx="8" fill="#3D5AF1"/>
+  <text x="1163" y="111" font-size="13" font-weight="500" fill="#FFFFFF">+ New Workspace</text>
+
+  <!-- Workspace Card 1 - ready -->
+  <rect x="40" y="140" width="374" height="152" rx="10" fill="#FFFFFF" stroke="#E8E8F0" stroke-width="1"/>
+  <text x="60" y="174" font-size="14" font-weight="600" fill="#1A1A2E">cloud-code-studio</text>
+  <!-- Dots menu -->
+  <circle cx="390" cy="168" r="2" fill="#AAAACC"/>
+  <circle cx="390" cy="175" r="2" fill="#AAAACC"/>
+  <circle cx="390" cy="182" r="2" fill="#AAAACC"/>
+  <text x="60" y="196" font-size="12" fill="#8888A8">https://github.com/alex/cloud-code-studio.git</text>
+  <line x1="60" y1="210" x2="394" y2="210" stroke="#F0F0F8" stroke-width="1"/>
+  <!-- Status badge - ready -->
+  <rect x="60" y="222" width="48" height="20" rx="10" fill="#D6F5E8"/>
+  <text x="72" y="235" font-size="11" fill="#1A7A4A">ready</text>
+  <!-- Branch badge -->
+  <rect x="116" y="222" width="42" height="20" rx="10" fill="transparent" stroke="#D8D8EC" stroke-width="1"/>
+  <text x="126" y="235" font-size="11" fill="#4A4A6A">main</text>
+  <text x="60" y="272" font-size="11" fill="#AAAACC">Created 2 days ago</text>
+
+  <!-- Workspace Card 2 - creating -->
+  <rect x="453" y="140" width="374" height="152" rx="10" fill="#FFFFFF" stroke="#E8E8F0" stroke-width="1"/>
+  <text x="473" y="174" font-size="14" font-weight="600" fill="#1A1A2E">api-service</text>
+  <circle cx="803" cy="168" r="2" fill="#AAAACC"/>
+  <circle cx="803" cy="175" r="2" fill="#AAAACC"/>
+  <circle cx="803" cy="182" r="2" fill="#AAAACC"/>
+  <text x="473" y="196" font-size="12" fill="#8888A8">https://github.com/alex/api-service.git</text>
+  <line x1="473" y1="210" x2="807" y2="210" stroke="#F0F0F8" stroke-width="1"/>
+  <!-- Status badge - creating -->
+  <rect x="473" y="222" width="60" height="20" rx="10" fill="#FFF3D6"/>
+  <text x="484" y="235" font-size="11" fill="#8A5A00">creating</text>
+  <rect x="541" y="222" width="42" height="20" rx="10" fill="transparent" stroke="#D8D8EC" stroke-width="1"/>
+  <text x="551" y="235" font-size="11" fill="#4A4A6A">main</text>
+  <text x="473" y="272" font-size="11" fill="#AAAACC">Created 1 hour ago</text>
+
+  <!-- Workspace Card 3 - error -->
+  <rect x="866" y="140" width="374" height="152" rx="10" fill="#FFFFFF" stroke="#E8E8F0" stroke-width="1"/>
+  <text x="886" y="174" font-size="14" font-weight="600" fill="#1A1A2E">frontend-app</text>
+  <circle cx="1216" cy="168" r="2" fill="#AAAACC"/>
+  <circle cx="1216" cy="175" r="2" fill="#AAAACC"/>
+  <circle cx="1216" cy="182" r="2" fill="#AAAACC"/>
+  <text x="886" y="196" font-size="12" fill="#8888A8">Local workspace</text>
+  <line x1="886" y1="210" x2="1220" y2="210" stroke="#F0F0F8" stroke-width="1"/>
+  <!-- Status badge - error -->
+  <rect x="886" y="222" width="44" height="20" rx="10" fill="#FFE0E0"/>
+  <text x="898" y="235" font-size="11" fill="#8A1A1A">error</text>
+  <text x="886" y="272" font-size="11" fill="#AAAACC">Created 5 days ago</text>
+
+  <!-- Workspace Card 4 - ready -->
+  <rect x="40" y="316" width="374" height="152" rx="10" fill="#FFFFFF" stroke="#E8E8F0" stroke-width="1"/>
+  <text x="60" y="350" font-size="14" font-weight="600" fill="#1A1A2E">ml-playground</text>
+  <circle cx="390" cy="344" r="2" fill="#AAAACC"/>
+  <circle cx="390" cy="351" r="2" fill="#AAAACC"/>
+  <circle cx="390" cy="358" r="2" fill="#AAAACC"/>
+  <text x="60" y="372" font-size="12" fill="#8888A8">https://github.com/alex/ml-playground.git</text>
+  <line x1="60" y1="386" x2="394" y2="386" stroke="#F0F0F8" stroke-width="1"/>
+  <rect x="60" y="398" width="48" height="20" rx="10" fill="#D6F5E8"/>
+  <text x="72" y="411" font-size="11" fill="#1A7A4A">ready</text>
+  <rect x="116" y="398" width="62" height="20" rx="10" fill="transparent" stroke="#D8D8EC" stroke-width="1"/>
+  <text x="124" y="411" font-size="11" fill="#4A4A6A">develop</text>
+  <text x="60" y="448" font-size="11" fill="#AAAACC">Created 1 week ago</text>
+</svg>

@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="640" viewBox="0 0 320 640">
+  <defs>
+    <style>
+      text { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="320" height="640" fill="#FFFFFF"/>
+  <line x1="319" y1="0" x2="319" y2="640" stroke="#E8E8F0" stroke-width="1"/>
+
+  <!-- Header -->
+  <rect width="320" height="40" fill="#FFFFFF"/>
+  <line x1="0" y1="40" x2="320" y2="40" stroke="#F0F0F8" stroke-width="1"/>
+  <text x="16" y="26" font-size="11" font-weight="600" fill="#6A6A8A" letter-spacing="0.5">FILES</text>
+
+  <!-- File Tree -->
+  <!-- src/ expanded -->
+  <rect x="0" y="40" width="320" height="26" fill="#F0F0F8"/>
+  <text x="8" y="57" font-size="13" fill="#1A1A2E">▾ src</text>
+
+  <!-- components/ expanded -->
+  <text x="24" y="83" font-size="13" fill="#4A4A6A">▾ components</text>
+  <!-- ui/ -->
+  <text x="40" y="104" font-size="12" fill="#6A6A8A">▸ ui</text>
+  <!-- Chat/ -->
+  <text x="40" y="122" font-size="12" fill="#6A6A8A">▸ Chat</text>
+  <!-- FileExplorer/ expanded -->
+  <text x="40" y="140" font-size="12" fill="#1A1A2E">▾ FileExplorer</text>
+  <text x="56" y="157" font-size="12" fill="#6A6A8A">📄 index.tsx</text>
+  <!-- OpenCodeSettings/ -->
+  <text x="40" y="175" font-size="12" fill="#6A6A8A">▸ OpenCodeSettings</text>
+  <!-- Common/ -->
+  <text x="40" y="193" font-size="12" fill="#6A6A8A">▸ Common</text>
+
+  <!-- hooks/ -->
+  <text x="24" y="215" font-size="12" fill="#6A6A8A">▸ hooks</text>
+
+  <!-- pages/ expanded -->
+  <text x="24" y="233" font-size="13" fill="#4A4A6A">▾ pages</text>
+  <text x="40" y="251" font-size="12" fill="#6A6A8A">▸ Dashboard</text>
+  <text x="40" y="269" font-size="12" fill="#6A6A8A">▸ Login</text>
+  <text x="40" y="287" font-size="12" fill="#6A6A8A">▸ Register</text>
+  <!-- Active file (highlighted) -->
+  <rect x="0" y="295" width="320" height="22" fill="#EEF1FF"/>
+  <text x="40" y="310" font-size="12" fill="#3D5AF1">▾ Workspace</text>
+  <rect x="0" y="317" width="320" height="22" fill="#EEF1FF"/>
+  <text x="56" y="332" font-size="12" fill="#3D5AF1" font-weight="500">📄 index.tsx</text>
+
+  <!-- services/ -->
+  <text x="24" y="357" font-size="12" fill="#6A6A8A">▸ services</text>
+
+  <!-- stores/ expanded -->
+  <text x="24" y="375" font-size="13" fill="#4A4A6A">▾ stores</text>
+  <text x="40" y="393" font-size="12" fill="#6A6A8A">📄 authStore.ts</text>
+  <text x="40" y="411" font-size="12" fill="#6A6A8A">📄 chatStore.ts</text>
+  <text x="40" y="429" font-size="12" fill="#6A6A8A">📄 workspaceStore.ts</text>
+
+  <!-- types/ -->
+  <text x="24" y="451" font-size="12" fill="#6A6A8A">▸ types</text>
+  <!-- utils/ -->
+  <text x="24" y="469" font-size="12" fill="#6A6A8A">▸ utils</text>
+
+  <!-- Root files -->
+  <text x="24" y="491" font-size="12" fill="#6A6A8A">📄 App.tsx</text>
+  <text x="24" y="509" font-size="12" fill="#6A6A8A">📄 app.css</text>
+  <text x="24" y="527" font-size="12" fill="#6A6A8A">📄 main.tsx</text>
+
+  <!-- package.json etc. -->
+  <text x="8" y="549" font-size="12" fill="#6A6A8A">📄 package.json</text>
+  <text x="8" y="567" font-size="12" fill="#6A6A8A">📄 tsconfig.json</text>
+  <text x="8" y="585" font-size="12" fill="#6A6A8A">📄 vite.config.ts</text>
+  <text x="8" y="603" font-size="12" fill="#6A6A8A">📄 README.md</text>
+
+  <!-- Git status footer -->
+  <line x1="0" y1="618" x2="320" y2="618" stroke="#F0F0F8" stroke-width="1"/>
+  <text x="16" y="633" font-size="11" fill="#8888A8">main ·</text>
+  <text x="52" y="633" font-size="11" fill="#3A9A5C">M 2</text>
+  <text x="74" y="633" font-size="11" fill="#AAAACC">untracked 1</text>
+</svg>

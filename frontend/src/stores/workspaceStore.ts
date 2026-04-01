@@ -45,15 +45,17 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
   },
 
   deleteWorkspace: async (id) => {
+    set({ loading: true, error: null });
     try {
       await api.delete(`/workspaces/${id}`);
       set((state) => ({
         workspaces: state.workspaces.filter((w) => w.id !== id),
         currentWorkspace:
           state.currentWorkspace?.id === id ? null : state.currentWorkspace,
+        loading: false,
       }));
     } catch {
-      set({ error: 'Failed to delete workspace' });
+      set({ error: 'Failed to delete workspace', loading: false });
     }
   },
 

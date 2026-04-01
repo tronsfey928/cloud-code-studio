@@ -34,7 +34,7 @@ interface AuthenticatedSocket extends Socket {
 
 @WebSocketGateway({
   cors: {
-    origin: true,
+    origin: false,
     credentials: true,
   },
   transports: ['websocket', 'polling'],
@@ -58,6 +58,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {}
 
   async handleConnection(socket: AuthenticatedSocket): Promise<void> {
+    const origin = socket.handshake.headers.origin as string | undefined;
+    const allowedOrigins = this.configService.get<string[]>('app.allowedOrigins', ['http://localhost:3000']);
+    if (origin && !allowedOrigins.includes(origin)) {
+      socket.emit('error', { message: 'Origin not allowed' });
+      socket.disconnect();
+      return;
+    }
+
     const token = socket.handshake.auth.token as string | undefined;
     if (!token) {
       socket.emit('error', { message: 'Authentication required' });
