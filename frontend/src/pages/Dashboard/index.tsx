@@ -18,6 +18,7 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { workspaces, loading, fetchWorkspaces, createWorkspace, deleteWorkspace } = useWorkspaceStore();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState('');
   const [repoUrl, setRepoUrl] = useState('');
@@ -50,7 +51,13 @@ export default function DashboardPage() {
   };
 
   const handleDelete = async (id: string) => {
-    await deleteWorkspace(id);
+    if (deletingId) return;
+    setDeletingId(id);
+    try {
+      await deleteWorkspace(id);
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   return (
@@ -102,8 +109,13 @@ export default function DashboardPage() {
                         <DropdownMenuItem onClick={() => navigate(`/workspace/${ws.id}`)}>
                           <ExternalLink className="mr-2 h-4 w-4" /> Open
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-danger-600" onClick={() => handleDelete(ws.id)}>
-                          <Trash2 className="mr-2 h-4 w-4" /> Delete
+                        <DropdownMenuItem
+                          className="text-danger-600"
+                          disabled={!!deletingId}
+                          onClick={() => handleDelete(ws.id)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          {deletingId === ws.id ? 'Deleting…' : 'Delete'}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

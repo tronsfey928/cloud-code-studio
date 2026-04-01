@@ -599,31 +599,29 @@ cd frontend && npx tsc --noEmit
 
 ## 界面截图
 
-> 📌 截图待补充。以下为各界面的文字说明。
-
 ### 工作区列表（Dashboard）
 
-> 展示用户的所有工作区卡片，支持创建（填写 Git 仓库地址）、删除操作，以及工作区状态标签（creating / ready / error）。
+展示用户的所有工作区卡片，支持创建（填写 Git 仓库地址）、删除操作，以及工作区状态标签（creating / ready / error）。
 
-<!-- 截图占位：部署运行后执行 npm run dev 访问 Dashboard 页面截图并保存至 docs/screenshots/dashboard.png -->
+![Dashboard 工作区列表](docs/screenshots/dashboard.svg)
 
 ### AI 编程聊天界面
 
-> 主工作区页面，左侧为文件浏览器，右侧为 AI 聊天面板。实时展示 AI 流式响应、工具调用过程、代码文件变更详情。
+主工作区页面，左侧为文件浏览器，右侧为 AI 聊天面板。实时展示 AI 流式响应、工具调用过程、代码文件变更详情。
 
-<!-- 截图占位：部署运行后访问 Workspace 页面截图并保存至 docs/screenshots/workspace-chat.png -->
+![AI 编程聊天界面](docs/screenshots/workspace-chat.svg)
 
 ### AI 配置面板
 
-> 工作区设置弹窗，可配置 AI 引擎（Claude Code / Codex / GitHub Copilot CLI / OpenCode）、LLM 提供商与模型、API Key、MCP 服务器列表和预设命令。
+工作区设置弹窗，可配置 AI 引擎（Claude Code / Codex / GitHub Copilot CLI / OpenCode）、LLM 提供商与模型、API Key、MCP 服务器列表和预设命令。
 
-<!-- 截图占位：部署运行后打开设置面板截图并保存至 docs/screenshots/opencode-settings.png -->
+![AI 配置面板](docs/screenshots/opencode-settings.svg)
 
 ### 文件浏览器
 
-> 内嵌文件树，支持展开/折叠目录、点击预览文件内容，与 AI 聊天联动展示最近变更文件。
+内嵌文件树，支持展开/折叠目录、点击预览文件内容，与 AI 聊天联动展示最近变更文件及 Git 状态。
 
-<!-- 截图占位：部署运行后展开文件树截图并保存至 docs/screenshots/file-explorer.png -->
+![文件浏览器](docs/screenshots/file-explorer.svg)
 
 ---
 

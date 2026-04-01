@@ -288,11 +288,11 @@ export class OpenCodeService {
     const llmApiKey = this.configService.get<string>('opencode.llmApiKey');
     const llmBaseUrl = this.configService.get<string>('opencode.llmBaseUrl');
 
-    if (llmProvider) vars.push(`OPENCODE_PROVIDER="${llmProvider}"`);
-    if (llmModel) vars.push(`OPENCODE_MODEL="${llmModel}"`);
-    if (llmApiKey) vars.push(`OPENCODE_API_KEY="${llmApiKey}"`);
-    if (llmBaseUrl) vars.push(`OPENCODE_BASE_URL="${llmBaseUrl}"`);
-    if (workspaceId) vars.push(`WORKSPACE_ID="${workspaceId}"`);
+    if (llmProvider) vars.push(`OPENCODE_PROVIDER=${this.escapeShellArg(llmProvider)}`);
+    if (llmModel) vars.push(`OPENCODE_MODEL=${this.escapeShellArg(llmModel)}`);
+    if (llmApiKey) vars.push(`OPENCODE_API_KEY=${this.escapeShellArg(llmApiKey)}`);
+    if (llmBaseUrl) vars.push(`OPENCODE_BASE_URL=${this.escapeShellArg(llmBaseUrl)}`);
+    if (workspaceId) vars.push(`WORKSPACE_ID=${this.escapeShellArg(workspaceId)}`);
     if (vars.length === 0) vars.push('OPENCODE_STUB=1');
     return vars;
   }

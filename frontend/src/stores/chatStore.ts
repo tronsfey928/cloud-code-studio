@@ -15,6 +15,7 @@ interface ChatState {
   setTyping: (typing: boolean) => void;
   setSessionId: (id: string) => void;
   clearMessages: () => void;
+  clearSession: () => void;
   setPlanMode: (enabled: boolean) => void;
   setDevServer: (data: DevServerData | null) => void;
   setWorkspaceInfo: (info: WorkspaceInfo) => void;
@@ -55,6 +56,8 @@ export const useChatStore = create<ChatState>((set, _get) => ({
   },
 
   clearMessages: () => set({ messages: [] }),
+
+  clearSession: () => set({ sessionId: null, messages: [], isTyping: false }),
 
   setPlanMode: (enabled) => set({ planMode: enabled }),
 

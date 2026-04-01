@@ -15,8 +15,8 @@ import { cn } from '@/lib/utils';
 export default function WorkspacePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { currentWorkspace, setCurrentWorkspace, fetchWorkspaces, workspaces } = useWorkspaceStore();
-  const { setSessionId, sessionId } = useChatStore();
+  const { currentWorkspace, setCurrentWorkspace } = useWorkspaceStore();
+  const { setSessionId, clearSession, sessionId } = useChatStore();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -25,7 +25,8 @@ export default function WorkspacePage() {
     if (!id) return;
     setLoading(true);
 
-    // Ensure workspace list is loaded
+    // Read workspaces directly from store state to avoid subscribing to list changes
+    const { workspaces, fetchWorkspaces } = useWorkspaceStore.getState();
     if (workspaces.length === 0) {
       await fetchWorkspaces();
     }
@@ -44,14 +45,15 @@ export default function WorkspacePage() {
     }
 
     setLoading(false);
-  }, [id, workspaces.length, fetchWorkspaces, setCurrentWorkspace, setSessionId]);
+  }, [id, setCurrentWorkspace, setSessionId]);
 
   useEffect(() => {
     initWorkspace();
     return () => {
       setCurrentWorkspace(null);
+      clearSession();
     };
-  }, [initWorkspace, setCurrentWorkspace]);
+  }, [initWorkspace, setCurrentWorkspace, clearSession]);
 
   if (loading) {
     return (

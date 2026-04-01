@@ -36,12 +36,14 @@ export class WorkspaceService {
     const workspacesDir = this.configService.get<string>('app.workspacesDir', '/data/workspaces');
     const workspacePath = path.join(workspacesDir, workspace.id);
 
-    // Clone asynchronously
+    // Set up workspace directory asynchronously
     setImmediate(() => {
       void (async () => {
         try {
           await fs.mkdir(workspacePath, { recursive: true });
-          await this.gitService.clone(dto.repositoryUrl, dto.branch || 'main', workspacePath);
+          if (dto.repositoryUrl) {
+            await this.gitService.clone(dto.repositoryUrl, dto.branch || 'main', workspacePath);
+          }
           await this.workspaceRepository.update(workspace.id, {
             workspacePath,
             status: 'ready',
