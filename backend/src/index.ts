@@ -2,10 +2,12 @@ import { config } from './config';
 import { connectDatabase } from './config/database';
 import { createApp } from './app';
 import { logger } from './utils/logger';
+import { cacheService } from './services/cacheService';
 
 async function main(): Promise<void> {
   try {
     await connectDatabase();
+    await cacheService.init();
 
     const { server } = createApp();
 
@@ -18,6 +20,7 @@ async function main(): Promise<void> {
 
     const shutdown = async (signal: string): Promise<void> => {
       logger.info(`${signal} received, shutting down gracefully`);
+      await cacheService.shutdown();
       server.close(() => {
         logger.info('HTTP server closed');
         process.exit(0);

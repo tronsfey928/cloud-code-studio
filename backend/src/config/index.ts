@@ -25,7 +25,7 @@ export const config = {
     password: process.env.MYSQL_PASSWORD || 'cloudcode',
     database: process.env.MYSQL_DATABASE || 'cloudcode',
   },
-  redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
+  redisUrl: process.env.REDIS_URL || '',
   jwtSecret,
   jwtExpiry: process.env.JWT_EXPIRY || '24h',
   allowedOrigins: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],

@@ -258,15 +258,29 @@ export class OpenCodeService {
       if (apiKey) opencodeConfig.apiKey = apiKey;
       if (baseUrl) opencodeConfig.baseUrl = baseUrl;
 
-      // MCP servers
+      // Skills
+      if (wsConfig.skills && wsConfig.skills.length > 0) {
+        opencodeConfig.skills = wsConfig.skills;
+      }
+
+      // MCP servers — support both sse (url-based) and stdio (command-based) transports
       const enabledServers = (wsConfig.mcpServers || []).filter(
-        (s: McpServerConfig) => s.enabled && s.name && s.url
+        (s: McpServerConfig) => s.enabled && s.name
       );
 
       if (enabledServers.length > 0) {
-        const mcpServers: Record<string, { url: string }> = {};
+        const mcpServers: Record<string, Record<string, unknown>> = {};
         for (const server of enabledServers) {
-          mcpServers[server.name] = { url: server.url };
+          if (server.command) {
+            // stdio transport
+            mcpServers[server.name] = {
+              command: server.command,
+              args: server.args || [],
+            };
+          } else if (server.url) {
+            // sse / streamable-http transport
+            mcpServers[server.name] = { url: server.url };
+          }
         }
         opencodeConfig.mcpServers = mcpServers;
       }

@@ -8,6 +8,7 @@ import { ChatSession } from '../models/ChatSession';
 import { ChatMessage } from '../models/ChatMessage';
 import { Workspace } from '../models/Workspace';
 import { openCodeService } from '../services/opencodeService';
+import { streamCodingSession } from '../services/codingServiceFactory';
 import { isValidPort, MAX_MESSAGE_LENGTH, MAX_ATTACHMENT_SIZE } from '../utils/validation';
 
 interface AuthenticatedSocket extends Socket {
@@ -159,8 +160,8 @@ export function setupWebSocket(io: Server): void {
             )
             .map((a) => a.data);
 
-          // Use the full coding session stream
-          for await (const event of openCodeService.streamCodingSession(
+          // Use the full coding session stream (routed through the factory)
+          for await (const event of streamCodingSession(
             workspace.workspacePath,
             content,
             {

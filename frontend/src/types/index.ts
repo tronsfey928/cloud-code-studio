@@ -71,11 +71,18 @@ export interface McpServer {
   name: string;
   url: string;
   enabled: boolean;
+  /** Transport type: 'sse' for HTTP-based, 'stdio' for command-based */
+  transport?: 'sse' | 'stdio';
+  /** Command to run for stdio transport */
+  command?: string;
+  /** Arguments for the stdio command */
+  args?: string[];
 }
 
 export interface OpenCodeConfig {
   id: string;
   workspaceId: string;
+  codingProvider: string;
   llmProvider: string;
   llmModel: string | null;
   llmApiKey: string | null;

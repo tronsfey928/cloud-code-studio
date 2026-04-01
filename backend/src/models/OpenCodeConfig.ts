@@ -11,6 +11,12 @@ export interface McpServerConfig {
   name: string;
   url: string;
   enabled: boolean;
+  /** Transport type: 'sse' for HTTP-based, 'stdio' for command-based */
+  transport?: 'sse' | 'stdio';
+  /** Command to run for stdio transport (e.g. 'npx', 'node') */
+  command?: string;
+  /** Arguments for the stdio command */
+  args?: string[];
 }
 
 export class OpenCodeConfig extends Model<
@@ -19,6 +25,7 @@ export class OpenCodeConfig extends Model<
 > {
   declare id: CreationOptional<string>;
   declare workspaceId: string;
+  declare codingProvider: CreationOptional<string>;
   declare llmProvider: CreationOptional<string>;
   declare llmModel: CreationOptional<string | null>;
   declare llmApiKey: CreationOptional<string | null>;
@@ -40,6 +47,11 @@ OpenCodeConfig.init(
       type: DataTypes.UUID,
       allowNull: false,
       unique: true,
+    },
+    codingProvider: {
+      type: DataTypes.STRING(50),
+      allowNull: false,
+      defaultValue: 'opencode',
     },
     llmProvider: {
       type: DataTypes.STRING(100),
