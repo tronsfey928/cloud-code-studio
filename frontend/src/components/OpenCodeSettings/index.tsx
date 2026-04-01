@@ -21,6 +21,7 @@ import {
   ApiOutlined,
   ThunderboltOutlined,
   CodeOutlined,
+  ToolOutlined,
 } from '@ant-design/icons';
 import api from '@/services/api';
 import type { OpenCodeConfig, McpServer } from '@/types';
@@ -61,6 +62,7 @@ const OpenCodeSettings: React.FC<OpenCodeSettingsProps> = ({ workspaceId, open, 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [mcpServers, setMcpServers] = useState<McpServer[]>([]);
+  const [setupCommands, setSetupCommands] = useState<string[]>([]);
 
   useEffect(() => {
     if (open && workspaceId) {
@@ -77,6 +79,7 @@ const OpenCodeSettings: React.FC<OpenCodeSettingsProps> = ({ workspaceId, open, 
             skills: config.skills ?? [],
           });
           setMcpServers(config.mcpServers ?? []);
+          setSetupCommands(config.setupCommands ?? []);
         })
         .catch(() => {
           void message.error('Failed to load OpenCode configuration');
@@ -92,6 +95,7 @@ const OpenCodeSettings: React.FC<OpenCodeSettingsProps> = ({ workspaceId, open, 
       await api.put(`/opencode/${workspaceId}/config`, {
         ...values,
         mcpServers,
+        setupCommands,
       });
       void message.success('Configuration saved');
       onClose();
@@ -216,6 +220,62 @@ const OpenCodeSettings: React.FC<OpenCodeSettingsProps> = ({ workspaceId, open, 
                 ))}
               </Checkbox.Group>
             </Form.Item>
+          </div>
+
+          <Divider />
+
+          {/* Setup Commands Section */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <Title level={5} className="flex items-center gap-2 !mb-0">
+                <ToolOutlined className="text-teal-500" />
+                Setup Commands
+              </Title>
+              <Button
+                type="dashed"
+                icon={<PlusOutlined />}
+                size="small"
+                onClick={() => setSetupCommands((prev) => [...prev, ''])}
+              >
+                Add Command
+              </Button>
+            </div>
+            <Text type="secondary" className="block mb-3 text-xs">
+              Shell commands to run before each coding session (e.g. install dependencies, set up environment)
+            </Text>
+
+            {setupCommands.length === 0 ? (
+              <div className="text-center py-4 text-gray-400 text-sm border border-dashed border-gray-200 rounded-lg">
+                No setup commands configured
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {setupCommands.map((cmd, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Input
+                      size="small"
+                      placeholder="e.g. npm install"
+                      value={cmd}
+                      onChange={(e) =>
+                        setSetupCommands((prev) =>
+                          prev.map((c, i) => (i === index ? e.target.value : c))
+                        )
+                      }
+                      className="font-mono"
+                    />
+                    <Button
+                      type="text"
+                      icon={<DeleteOutlined />}
+                      size="small"
+                      danger
+                      onClick={() =>
+                        setSetupCommands((prev) => prev.filter((_, i) => i !== index))
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <Divider />

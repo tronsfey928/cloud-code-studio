@@ -89,6 +89,8 @@ export interface OpenCodeConfig {
   llmBaseUrl: string | null;
   skills: string[];
   mcpServers: McpServer[];
+  /** Shell commands to run before starting a coding session (environment init). */
+  setupCommands: string[];
 }
 
 export interface ApiError {
@@ -115,6 +117,7 @@ export interface RegisterPayload {
 
 export interface AuthResponse {
   token: string;
+  refreshToken: string;
   user: User;
 }
 
